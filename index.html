@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Biltong Box</title>
+<style>
+  :root { color-scheme: light; }
+  .viz-root {
+    --surface-1:      #fcfcfb;
+    --surface-2:      #f3f2ee;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --muted:          #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+    --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
+    --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --surface-2:      #232322;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --muted:          #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+      --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+      --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #e66767;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --surface-2:      #232322;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted:          #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+    --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #e66767;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--page);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--text-primary);
+  }
+  .app { max-width: 980px; margin: 0 auto; padding: 20px 16px 64px; }
+
+  header.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 4px; flex-wrap: wrap; }
+  header.top h1 { font-size: 22px; margin: 0 0 2px; }
+  header.top p.sub { margin: 0; color: var(--text-secondary); font-size: 13px; }
+  .top-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  button { font-family: inherit; cursor: pointer; }
+  .btn { border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; }
+  .btn:hover { background: var(--surface-2); }
+  .btn-primary { background: var(--series-1); color: #fff; border-color: transparent; }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-ghost { background: transparent; border-color: transparent; color: var(--text-secondary); }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-danger { color: var(--status-critical); }
+  .btn-sm { padding: 5px 9px; font-size: 12px; border-radius: 6px; }
+
+  .banner { display: flex; gap: 10px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin: 14px 0; font-size: 13px; color: var(--text-secondary); }
+  .banner strong { color: var(--text-primary); }
+  .banner .close { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; padding: 2px 4px; }
+
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; }
+  .batch-card { cursor: pointer; transition: box-shadow .12s ease; position: relative; }
+  .batch-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+  .batch-card .accent { position: absolute; left:0; top:0; bottom:0; width:4px; border-radius: 12px 0 0 12px; }
+  .batch-card h3 { margin: 0 0 4px; font-size: 15px; padding-left: 8px; }
+  .batch-card .meta { padding-left: 8px; font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+  .batch-card .statusrow { padding-left: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .status-ready { background: color-mix(in srgb, var(--status-good) 16%, transparent); color: var(--status-good); }
+  .status-almost { background: color-mix(in srgb, var(--status-warning) 22%, transparent); color: #9a6600; }
+  .status-drying { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+  .status-new { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+
+  .empty { text-align: center; padding: 48px 16px; color: var(--text-secondary); }
+  .empty .icon { font-size: 34px; margin-bottom: 8px; }
+
+  .backrow { display:flex; align-items:center; gap:10px; margin-bottom: 10px; }
+  .backrow .btn-ghost { padding-left: 4px; }
+
+  .detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .detail-head h2 { margin: 0 0 4px; font-size: 20px; }
+  .detail-head .meta { color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+  .detail-actions { display: flex; gap: 6px; }
+
+  .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .summary-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 6px 11px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary); }
+  .summary-chip b { color: var(--text-primary); }
+  .summary-chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .meter-wrap { margin: 4px 0 4px; }
+  .meter-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; }
+  .meter-track { height: 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; position: relative; }
+  .meter-fill { height: 100%; border-radius: 999px 0 0 999px; transition: width .25s ease; }
+  .meter-target-mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text-primary); opacity: .5; }
+
+  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); margin: 22px 0 8px; display: flex; align-items: center; justify-content: space-between; }
+
+  .chart-card { position: relative; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-secondary); margin-top: 10px; flex-wrap: wrap; }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 14px; height: 3px; border-radius: 2px; display:inline-block; }
+  .legend .swatch.dashed { background: repeating-linear-gradient(90deg, var(--muted) 0 4px, transparent 4px 7px); height: 2px; }
+
+  .tooltip { position: fixed; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 50; display: none; line-height: 1.5; max-width: 230px; }
+  .tooltip .d { font-weight: 700; margin-bottom: 2px; }
+  .tooltip .row { color: var(--text-secondary); }
+
+  table.data { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px;}
+  table.data th, table.data td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--gridline); font-variant-numeric: tabular-nums; }
+  table.data th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .02em; }
+  table.data tr:last-child td { border-bottom: none; }
+  table.data td.notes, table.data td.est { color: var(--text-secondary); font-variant-numeric: normal; }
+  table.data .row-actions { text-align: right; white-space: nowrap; }
+  table.data .strip-name-cell { display: flex; align-items: center; gap: 7px; font-weight: 600; }
+  table.data .strip-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+  form .field { margin-bottom: 12px; }
+  form .field label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; color: var(--text-secondary); }
+  form .field-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  form .field-row .field { flex: 1; min-width: 140px; }
+  input, select, textarea { width: 100%; font-family: inherit; font-size: 13.5px; padding: 8px 9px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--series-1); outline-offset: 0; }
+  textarea { resize: vertical; min-height: 54px; }
+  form .hint { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 100; }
+  .modal { background: var(--surface-1); border-radius: 14px; padding: 22px; width: 100%; max-width: 580px; border: 1px solid var(--border); }
+  .modal h2 { margin: 0 0 4px; font-size: 17px; }
+  .modal p.hint-top { margin: 0 0 16px; color: var(--text-secondary); font-size: 12.5px; }
+
+  .add-entry-card { margin-top: 8px; }
+  [hidden] { display: none !important; }
+
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text-primary); color: var(--surface-1); padding: 9px 16px; border-radius: 999px; font-size: 13px; box-shadow: 0 4px 14px rgba(0,0,0,0.2); z-index: 200; opacity: 0; transition: opacity .2s ease; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; }
+
+  .caution { margin-top: 6px; font-size: 12px; color: #9a6600; background: color-mix(in srgb, var(--status-warning) 18%, transparent); border-radius: 6px; padding: 6px 9px; }
+
+  .sync-pill { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-secondary); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px 6px 10px; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-good); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-good) 20%, transparent); }
+  .sync-pill b { color: var(--text-primary); font-weight: 600; }
+  .sync-pill button { background: none; border: none; color: var(--muted); font-size: 12px; text-decoration: underline; padding: 0; margin-left: 2px; cursor: pointer; }
+
+  .row-fields { display: flex; flex-direction: column; gap: 8px; }
+  .row-item { display: flex; gap: 8px; align-items: center; }
+  .row-item .rf-a { flex: 1.6; }
+  .row-item .rf-b { flex: 1; }
+  .row-item .rf-c { flex: 1; }
+  .row-item button { flex: none; }
+  .row-add { margin-top: 8px; }
+
+  .ing-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+  .ing-list li { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed var(--gridline); }
+  .ing-list li:last-child { border-bottom: none; }
+  .ing-list .amt { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ing-empty { color: var(--muted); font-size: 12.5px; }
+
+  .strip-weigh-list { display: flex; flex-direction: column; gap: 8px; }
+  .strip-weigh-row { display: flex; align-items: center; gap: 10px; }
+  .strip-weigh-row .swr-label { flex: 1.4; font-size: 13px; display:flex; align-items:center; gap:7px; }
+  .strip-weigh-row .swr-input { flex: 1; }
+  .strip-weigh-row .swr-hint { flex: 1; font-size: 11.5px; color: var(--muted); }
+
+  .est-note { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="app viz-root" id="app"></div>
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   OPTIONAL: online sync via Firebase Firestore.
+   Leave FIREBASE_CONFIG.apiKey blank to run fully local (File System
+   Access autosave, or plain export/import). Fill it in — plus deploy
+   this file as index.html on GitHub Pages — to sync live across devices.
+   See README.md for the full step-by-step setup.
+   ===================================================================== */
+var FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+var FIREBASE_DOC_PATH = "biltong/data"; // one Firestore document holds the whole tracker
+
+(function () {
+  "use strict";
+
+  /* ---------------- State ---------------- */
+  var state = {
+    batches: [],
+    strips: [],
+    stripWeights: [],
+    dayLogs: [],
+    view: "list",          // 'list' | 'detail'
+    selectedBatchId: null,
+    bannerDismissed: false
+  };
+
+  var DRYING_SETUPS = ["Biltong box (fan only)", "Biltong box (fan + bulb)", "Ambient hanging", "Fridge", "Other"];
+  var FAN_SPEEDS = ["High", "Medium", "Low"];
+  var SERIES_SLOTS = ["--series-1","--series-2","--series-3","--series-4","--series-5","--series-6","--series-7","--series-8"];
+
+  var INGREDIENT_SUGGESTIONS = [
+    "Coarse black pepper", "Coriander seed (toasted & crushed)", "Salt", "Brown / spirit vinegar",
+    "Worcestershire sauce", "Brown sugar", "Bicarbonate of soda", "Chilli flakes", "Garlic (fresh or powder)",
+    "Paprika", "Cure #2 / Instacure", "Fennel seed", "Ground cloves", "Onion powder", "Ginger"
+  ];
+  var DEFAULT_INGREDIENTS = [
+    { name: "Coarse black pepper", amount: "" },
+    { name: "Coriander seed (toasted & crushed)", amount: "" },
+    { name: "Salt", amount: "" },
+    { name: "Brown / spirit vinegar", amount: "" },
+    { name: "Worcestershire sauce", amount: "" },
+    { name: "Brown sugar", amount: "" }
+  ];
+
+  function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+  function todayISO() { var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
+  function fmtDate(iso) { var d = new Date(iso + "T00:00:00"); return d.toLocaleDateString(undefined, {day:"numeric", month:"short"}); }
+  function addDaysISO(iso, days) { var d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + Math.round(days)); return d.toISOString().slice(0,10); }
+  function daysBetween(a, b) { return Math.round((new Date(b+"T00:00:00") - new Date(a+"T00:00:00")) / 86400000); }
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function seriesColor(idx) { return "var(" + SERIES_SLOTS[idx % SERIES_SLOTS.length] + ")"; }
+
+  /* ---------------- Data access ---------------- */
+  function stripsFor(batchId) {
+    return state.strips.filter(function(s){ return s.batchId === batchId; }).slice().sort(function(a,b){ return a.createdAt - b.createdAt; });
+  }
+  function stripWeightsFor(stripId) {
+    return state.stripWeights.filter(function(w){ return w.stripId === stripId; })
+      .slice().sort(function(a,b){ return a.date.localeCompare(b.date) || a.createdAt - b.createdAt; });
+  }
+  function dayLogsFor(batchId) {
+    return state.dayLogs.filter(function(d){ return d.batchId === batchId; })
+      .slice().sort(function(a,b){ return a.date.localeCompare(b.date) || a.createdAt - b.createdAt; });
+  }
+
+  /* ---------------- Drying-time heuristic ----------------
+     A rough, transparent estimate — not a lab model. Reference point: ~20mm
+     slices, 22C, 45%RH, medium fan in a box, losing weight at ~6%/day.
+     Warmer/drier/thinner/more airflow => faster. Always shown as a range,
+     and superseded by the batch's own measured rate as soon as there is data. */
+  function fanSetupFactor(dryingSetup, fanSpeed) {
+    var setupFactor = { "Biltong box (fan only)": 1.0, "Biltong box (fan + bulb)": 1.15, "Ambient hanging": 0.7, "Fridge": 0.5, "Other": 0.85 }[dryingSetup];
+    if (setupFactor === undefined) setupFactor = 0.85;
+    var speedFactor = 1.0;
+    if (dryingSetup && dryingSetup.indexOf("Biltong box") === 0) {
+      speedFactor = { High: 1.15, Medium: 1.0, Low: 0.85 }[fanSpeed] || 0.92;
+    }
+    return setupFactor * speedFactor;
+  }
+
+  function avgEnvForBatch(batchId) {
+    var logs = dayLogsFor(batchId);
+    var temps = [], hums = [];
+    logs.forEach(function(l) {
+      if (l.boxTempC !== "" && l.boxTempC != null) temps.push(Number(l.boxTempC));
+      else if (l.roomTempC !== "" && l.roomTempC != null) temps.push(Number(l.roomTempC));
+      if (l.boxHumidityPct !== "" && l.boxHumidityPct != null) hums.push(Number(l.boxHumidityPct));
+      else if (l.roomHumidityPct !== "" && l.roomHumidityPct != null) hums.push(Number(l.roomHumidityPct));
+    });
+    var usedDefaults = temps.length === 0 || hums.length === 0;
+    var avgTemp = temps.length ? (temps.reduce(function(a,b){return a+b;},0) / temps.length) : 22;
+    var avgHum = hums.length ? (hums.reduce(function(a,b){return a+b;},0) / hums.length) : 45;
+    return { temp: avgTemp, hum: avgHum, usedDefaults: usedDefaults };
+  }
+
+  function estimateDryingRange(thicknessMm, avgTempC, avgHumidityPct, dryingSetup, fanSpeed, targetLossPct) {
+    var thickness = thicknessMm && thicknessMm > 0 ? thicknessMm : 20;
+    var tempFactor = clamp(avgTempC / 22, 0.55, 1.7);
+    var humFactor = clamp((85 - avgHumidityPct) / 40, 0.4, 1.7);
+    var thickFactor = clamp(20 / thickness, 0.45, 1.9);
+    var fanFactor = fanSetupFactor(dryingSetup, fanSpeed);
+    var rate = 6 * tempFactor * humFactor * thickFactor * fanFactor; // %/day
+    var central = targetLossPct / rate;
+    var low = Math.max(2, Math.floor(targetLossPct / (rate * 1.25)));
+    var high = Math.max(low + 1, Math.ceil(targetLossPct / (rate * 0.75)));
+    return { low: low, high: high, central: central, rate: rate };
+  }
+
+  /* ---------------- Stats ---------------- */
+  function stripStats(strip, batch) {
+    var log = stripWeightsFor(strip.id);
+    var env = avgEnvForBatch(batch.id);
+    var estRange = estimateDryingRange(strip.thicknessMm, env.temp, env.hum, batch.dryingSetup, batch.fanSpeed, batch.targetLossPct);
+    var targetWeightG = Math.round(strip.initialWeightG * (1 - batch.targetLossPct / 100));
+
+    if (log.length === 0) {
+      return {
+        hasEntries: false, pct: 0, daysElapsed: 0, log: log, status: "new",
+        rate: null, daysRemaining: null, targetWeightG: targetWeightG,
+        estRange: estRange, estReadyLow: addDaysISO(strip.addedDate, estRange.low), estReadyHigh: addDaysISO(strip.addedDate, estRange.high)
+      };
+    }
+    var last = log[log.length - 1];
+    var pct = ((strip.initialWeightG - last.weightG) / strip.initialWeightG) * 100;
+    pct = clamp(pct, -50, 99);
+    var daysElapsed = daysBetween(strip.addedDate, last.date);
+
+    var rate = null;
+    if (log.length >= 2) {
+      var prev = log[log.length - 2];
+      var prevPct = ((strip.initialWeightG - prev.weightG) / strip.initialWeightG) * 100;
+      var dDays = daysBetween(prev.date, last.date);
+      if (dDays > 0) rate = (pct - prevPct) / dDays;
+    }
+    if (rate === null && daysElapsed > 0) rate = pct / daysElapsed;
+
+    var target = batch.targetLossPct;
+    var status;
+    if (pct >= target) status = "ready";
+    else if (pct >= target - 5) status = "almost";
+    else status = "drying";
+
+    var daysRemaining = null, estReadyDate = null;
+    if (status !== "ready" && rate && rate > 0) {
+      daysRemaining = Math.ceil((target - pct) / rate);
+      estReadyDate = addDaysISO(last.date, daysRemaining);
+    }
+
+    var fastCaution = (status === "ready" && daysElapsed < 4);
+
+    return {
+      hasEntries: true, pct: pct, daysElapsed: daysElapsed, log: log, status: status,
+      rate: rate, daysRemaining: daysRemaining, estReadyDate: estReadyDate, fastCaution: fastCaution,
+      lastEntry: last, targetWeightG: targetWeightG, estRange: estRange
+    };
+  }
+
+  function batchStrips(batch) {
+    return stripsFor(batch.id).map(function(strip, idx) {
+      return { strip: strip, idx: idx, stats: stripStats(strip, batch) };
+    });
+  }
+
+  function batchSummary(batch) {
+    var rows = batchStrips(batch);
+    var counts = { ready: 0, almost: 0, drying: 0, new: 0 };
+    rows.forEach(function(r) { counts[r.stats.status]++; });
+    return { rows: rows, counts: counts, total: rows.length };
+  }
+
+  /* ---------------- Mutations (every mutation triggers an autosave, see persist()) ---------------- */
+  function addBatch(data) { state.batches.unshift(data); persist(); }
+  function editBatch(id, patch) {
+    var b = state.batches.find(function(x){ return x.id === id; });
+    if (!b) return;
+    Object.assign(b, patch);
+    persist();
+  }
+  function deleteBatch(id) {
+    var stripIds = state.strips.filter(function(s){ return s.batchId === id; }).map(function(s){ return s.id; });
+    state.batches = state.batches.filter(function(b){ return b.id !== id; });
+    state.strips = state.strips.filter(function(s){ return s.batchId !== id; });
+    state.stripWeights = state.stripWeights.filter(function(w){ return stripIds.indexOf(w.stripId) === -1; });
+    state.dayLogs = state.dayLogs.filter(function(d){ return d.batchId !== id; });
+    if (state.selectedBatchId === id) { state.selectedBatchId = null; state.view = "list"; }
+    persist();
+  }
+
+  function addStrip(data) { state.strips.push(data); persist(); }
+  function editStrip(id, patch) {
+    var s = state.strips.find(function(x){ return x.id === id; });
+    if (!s) return;
+    Object.assign(s, patch);
+    persist();
+  }
+  function deleteStrip(id) {
+    state.strips = state.strips.filter(function(s){ return s.id !== id; });
+    state.stripWeights = state.stripWeights.filter(function(w){ return w.stripId !== id; });
+    persist();
+  }
+
+  function addDayLog(data) { state.dayLogs.push(data); persist(); }
+  function deleteDayLog(id) { state.dayLogs = state.dayLogs.filter(function(d){ return d.id !== id; }); persist(); }
+
+  function addStripWeight(data) { state.stripWeights.push(data); }
+  function deleteStripWeight(id) { state.stripWeights = state.stripWeights.filter(function(w){ return w.id !== id; }); persist(); }
+
+  /* ---------------- Persistence ---------------- */
+  function exportPayload() {
+    return {
+      version: 3, exportedAt: new Date().toISOString(),
+      batches: state.batches, strips: state.strips, stripWeights: state.stripWeights, dayLogs: state.dayLogs
+    };
+  }
+
+  function normalizeBatch(b) {
+    if (!Array.isArray(b.ingredients)) b.ingredients = [];
+    if (typeof b.methodNotes !== "string") b.methodNotes = (typeof b.marinadeNotes === "string" ? b.marinadeNotes : "");
+    delete b.marinadeNotes;
+    delete b.initialWeightG;
+    delete b.thicknessMm;
+    return b;
+  }
+
+  // Migrates older export formats (single weight-per-batch-per-day) into the
+  // strip-based model, so existing exported/synced data isn't lost by the upgrade.
+  function normalizeImportedData(data) {
+    var out = {
+      batches: Array.isArray(data.batches) ? data.batches : [],
+      strips: Array.isArray(data.strips) ? data.strips : [],
+      stripWeights: Array.isArray(data.stripWeights) ? data.stripWeights : [],
+      dayLogs: Array.isArray(data.dayLogs) ? data.dayLogs : (Array.isArray(data.entries) ? [] : [])
+    };
+    var needsMigration = Array.isArray(data.entries) && out.strips.length === 0;
+    if (needsMigration) {
+      out.batches.forEach(function(b) {
+        var stripId = uid();
+        out.strips.push({
+          id: stripId, batchId: b.id, label: "Strip 1",
+          initialWeightG: b.initialWeightG || 0, thicknessMm: b.thicknessMm || null,
+          addedDate: b.startDate, createdAt: Date.now()
+        });
+        data.entries.filter(function(e){ return e.batchId === b.id; }).forEach(function(e) {
+          out.dayLogs.push({
+            id: uid(), batchId: b.id, date: e.date, boxTempC: e.boxTempC, boxHumidityPct: e.boxHumidityPct,
+            roomTempC: e.roomTempC, roomHumidityPct: e.roomHumidityPct, fanSpeed: e.fanSpeed, notes: e.notes, createdAt: e.createdAt || Date.now()
+          });
+          out.stripWeights.push({ id: uid(), stripId: stripId, batchId: b.id, date: e.date, weightG: e.weightG, createdAt: e.createdAt || Date.now() });
+        });
+      });
+    }
+    out.batches.forEach(normalizeBatch);
+    return out;
+  }
+
+  function importData(data, merge) {
+    if (!data || !Array.isArray(data.batches)) throw new Error("bad format");
+    var norm = normalizeImportedData(data);
+    if (merge) {
+      var existingIds = state.batches.map(function(b){ return b.id; });
+      norm.batches.forEach(function(b){ if (existingIds.indexOf(b.id) === -1) state.batches.push(b); });
+      var existingStripIds = state.strips.map(function(s){ return s.id; });
+      norm.strips.forEach(function(s){ if (existingStripIds.indexOf(s.id) === -1) state.strips.push(s); });
+      var existingWIds = state.stripWeights.map(function(w){ return w.id; });
+      norm.stripWeights.forEach(function(w){ if (existingWIds.indexOf(w.id) === -1) state.stripWeights.push(w); });
+      var existingDIds = state.dayLogs.map(function(d){ return d.id; });
+      norm.dayLogs.forEach(function(d){ if (existingDIds.indexOf(d.id) === -1) state.dayLogs.push(d); });
+    } else {
+      state.batches = norm.batches;
+      state.strips = norm.strips;
+      state.stripWeights = norm.stripWeights;
+      state.dayLogs = norm.dayLogs;
+    }
+    state.view = "list";
+    state.selectedBatchId = null;
+  }
+
+  /* ---- Firebase (optional, only active when FIREBASE_CONFIG.apiKey is set) ---- */
+  var firebaseReady = false;
+  var firebaseError = null;
+  var firebaseDb = null;
+
+  function firebaseConfigured() { return !!(FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey); }
+
+  function loadScript(src) {
+    return new Promise(function(resolve, reject) {
+      var s = document.createElement("script");
+      s.src = src; s.onload = resolve; s.onerror = function(){ reject(new Error("Failed to load " + src)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function initFirebase() {
+    if (!firebaseConfigured()) return Promise.resolve();
+    return loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js")
+      .then(function(){ return loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"); })
+      .then(function(){ return loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"); })
+      .then(function() {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        firebaseDb = firebase.firestore();
+        var persistPromise;
+        try { persistPromise = firebaseDb.enablePersistence({ synchronizeTabs: true }).catch(function(){}); } catch (e) { persistPromise = Promise.resolve(); }
+        return persistPromise.then(function(){ return firebase.auth().signInAnonymously(); });
+      })
+      .then(function() {
+        firebase.auth().onAuthStateChanged(function(user) {
+          if (!user) return;
+          firebaseDb.doc(FIREBASE_DOC_PATH).onSnapshot(function(snap) {
+            if (snap.exists) {
+              importData(snap.data(), false);
+            } else {
+              firebaseDb.doc(FIREBASE_DOC_PATH).set(exportPayload());
+            }
+            firebaseReady = true;
+            syncState = "saved";
+            render();
+          }, function(err) {
+            console.error(err);
+            firebaseError = err.message;
+            render();
+          });
+        });
+      })
+      .catch(function(err) {
+        console.error("Firebase init failed:", err);
+        firebaseError = err.message || String(err);
+        render();
+      });
+  }
+
+  async function persist() {
+    if (firebaseConfigured()) {
+      if (!firebaseDb) return; // still connecting; the initial snapshot write will cover current state
+      syncState = "saving"; updateSyncIndicator();
+      try {
+        await firebaseDb.doc(FIREBASE_DOC_PATH).set(exportPayload());
+        syncState = "saved";
+      } catch (err) {
+        console.error("Firestore write failed:", err);
+        syncState = "error";
+      }
+      updateSyncIndicator();
+      return;
+    }
+    if (!fileHandle) return;
+    syncState = "saving"; updateSyncIndicator();
+    try {
+      var writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(exportPayload(), null, 2));
+      await writable.close();
+      syncState = "saved";
+    } catch (err) {
+      console.error("Autosave failed:", err);
+      syncState = "error";
+    }
+    updateSyncIndicator();
+  }
+
+  function updateSyncIndicator() {
+    var el = document.getElementById("syncIndicator");
+    if (!el) return;
+    if (firebaseConfigured()) {
+      if (firebaseError) el.innerHTML = '<span class="sync-dot" style="background:var(--status-critical);"></span> Firebase error — check console &amp; config';
+      else if (!firebaseReady) el.innerHTML = '<span class="sync-dot" style="background:var(--muted);"></span> Connecting to Firebase…';
+      else if (syncState === "saving") el.innerHTML = '<span class="sync-dot" style="background:var(--muted);"></span> Saving…';
+      else el.innerHTML = '<span class="sync-dot"></span> Synced live via Firebase';
+      return;
+    }
+    if (syncState === "saving") el.innerHTML = '<span class="sync-dot" style="background:var(--muted);"></span> Saving…';
+    else if (syncState === "error") el.innerHTML = '<span class="sync-dot" style="background:var(--status-critical);"></span> Autosave failed — <button id="btnReconnect" type="button">reconnect</button>';
+    else el.innerHTML = '<span class="sync-dot"></span> Autosaving to <b>' + esc(fileName) + '</b> <button id="btnDisconnectFile" type="button">disconnect</button>';
+    var reconnectBtn = document.getElementById("btnReconnect");
+    if (reconnectBtn) reconnectBtn.addEventListener("click", connectExistingFile);
+    var discBtn = document.getElementById("btnDisconnectFile");
+    if (discBtn) discBtn.addEventListener("click", function() { fileHandle = null; fileName = ""; syncState = "idle"; render(); });
+  }
+
+  /* ---- File System Access fallback (used only when Firebase isn't configured) ---- */
+  var fsSupported = (typeof window.showOpenFilePicker === "function" && typeof window.showSaveFilePicker === "function");
+  var fileHandle = null;
+  var fileName = "";
+  var syncState = "idle"; // idle | saving | saved | error
+
+  async function connectExistingFile() {
+    try {
+      var handles = await window.showOpenFilePicker({
+        types: [{ description: "Biltong tracker data", accept: { "application/json": [".json"] } }],
+        excludeAcceptAllOption: false, multiple: false
+      });
+      var handle = handles[0];
+      var perm = await handle.requestPermission({ mode: "readwrite" });
+      var file = await handle.getFile();
+      var text = (await file.text()).trim();
+      if (text) importData(JSON.parse(text), false);
+      fileHandle = handle;
+      fileName = handle.name;
+      syncState = perm === "granted" ? "saved" : "error";
+      render();
+      toast(perm === "granted" ? "Connected — now autosaving to " + fileName : "Opened, but write access wasn't granted — changes won't save.");
+    } catch (err) { handlePickerError(err); }
+  }
+
+  function handlePickerError(err) {
+    if (!err || err.name === "AbortError") return;
+    console.error(err);
+    fsSupported = false;
+    render();
+    toast("Direct file saving isn't available in this window — use Export/Import instead.");
+  }
+
+  async function connectNewFile() {
+    try {
+      var handle = await window.showSaveFilePicker({
+        suggestedName: "biltong-tracker-data.json",
+        types: [{ description: "Biltong tracker data", accept: { "application/json": [".json"] } }]
+      });
+      fileHandle = handle;
+      fileName = handle.name;
+      await persist();
+      render();
+      toast("New data file created — autosaving to " + fileName);
+    } catch (err) { handlePickerError(err); }
+  }
+
+  function exportData() {
+    var blob = new Blob([JSON.stringify(exportPayload(), null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "biltong-tracker-" + todayISO() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    toast(fileHandle || firebaseConfigured() ? "Backup downloaded" : "Exported — keep this file to restore your data next time");
+  }
+
+  /* ---------------- Rendering ---------------- */
+  var $app = document.getElementById("app");
+
+  function render() {
+    if (state.view === "detail" && state.selectedBatchId) {
+      var b = state.batches.find(function(x){ return x.id === state.selectedBatchId; });
+      if (!b) { state.view = "list"; }
+      else { $app.innerHTML = renderHeader() + renderBanner() + renderDetail(b); bindDetailEvents(b); return; }
+    }
+    $app.innerHTML = renderHeader() + renderBanner() + renderList();
+    bindListEvents();
+  }
+
+  function renderHeader() {
+    var actions;
+    if (firebaseConfigured()) {
+      actions = '<span class="sync-pill" id="syncIndicator"></span><button class="btn btn-ghost btn-sm" id="btnBackupCopy" title="Download an extra backup copy">⬇ backup</button>';
+      if (firebaseError) {
+        actions += '<label class="btn btn-sm" for="fileImport" style="margin:0;">⬆ import backup</label><input type="file" id="fileImport" accept="application/json" hidden>';
+      }
+    } else if (fileHandle) {
+      actions = '<span class="sync-pill" id="syncIndicator"></span><button class="btn btn-ghost btn-sm" id="btnBackupCopy" title="Download an extra backup copy">⬇ backup</button>';
+    } else if (fsSupported) {
+      actions = '<button class="btn btn-primary" id="btnConnectExisting">📂 Open my data file</button><button class="btn" id="btnConnectNew">✨ Start a new file</button>';
+    } else {
+      actions = '<button class="btn" id="btnExport">⬇ Export data</button>' +
+        '<label class="btn" for="fileImport" style="margin:0;">⬆ Import data</label>' +
+        '<input type="file" id="fileImport" accept="application/json" hidden>';
+    }
+    return '' +
+    '<header class="top">' +
+      '<div><h1>📦 The Biltong Box</h1><p class="sub">Log each strip\'s weight, temperature &amp; humidity, and see suggested ready weights and dates.</p></div>' +
+      '<div class="top-actions">' + actions + '</div>' +
+    '</header>';
+  }
+
+  function renderBanner() {
+    if (state.bannerDismissed || fileHandle || firebaseConfigured()) return "";
+    var msg;
+    if (fsSupported) {
+      msg = '<strong>Connect a data file once and every update saves automatically</strong> — no more exporting/importing. Use <strong>Open my data file</strong> if you\'ve saved one before, or <strong>Start a new file</strong> for a fresh one. Want this synced live across devices instead? Deploy it with Firebase — see README.md.';
+    } else {
+      msg = '<strong>This browser can\'t autosave a local file</strong>, so use <strong>Export data</strong> after adding an update, and <strong>Import data</strong> next time you open this tracker.';
+    }
+    return '' +
+    '<div class="banner" id="persistBanner">' +
+      '<span>ℹ️</span>' +
+      '<div>' + msg + '</div>' +
+      '<button class="close" id="btnDismissBanner" title="Dismiss">×</button>' +
+    '</div>';
+  }
+
+  function statusMeta(status) {
+    if (status === "ready") return { label: "Ready", emoji: "✅", cls: "ready" };
+    if (status === "almost") return { label: "Almost there", emoji: "⏳", cls: "almost" };
+    if (status === "drying") return { label: "Still drying", emoji: "💨", cls: "drying" };
+    return { label: "Not weighed yet", emoji: "🥩", cls: "new" };
+  }
+
+  function renderList() {
+    if (state.batches.length === 0) {
+      return '' +
+      '<div class="card empty">' +
+        '<div class="icon">🥩</div>' +
+        '<h3 style="margin:6px 0;">No batches yet</h3>' +
+        '<p style="margin:0 0 16px;">Start a new batch to begin tracking, or import a previously exported file.</p>' +
+        '<div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">' +
+          '<button class="btn btn-primary" id="btnNewBatch">+ New batch</button>' +
+          '<button class="btn" id="btnLoadExample">Load example batch</button>' +
+        '</div>' +
+      '</div>' + batchModal("create", null);
+    }
+    var cards = state.batches.map(function(b) {
+      var sum = batchSummary(b);
+      var color = seriesColor(state.batches.indexOf(b));
+      var metaBits = [b.meatType, b.cut].filter(Boolean).join(" · ");
+      var pillLabel, pillCls, pillEmoji;
+      if (sum.total === 0) { pillLabel = "No strips yet"; pillCls = "new"; pillEmoji = "🥩"; }
+      else if (sum.counts.ready === sum.total) { pillLabel = "All " + sum.total + " ready"; pillCls = "ready"; pillEmoji = "✅"; }
+      else if (sum.counts.ready > 0) { pillLabel = sum.counts.ready + "/" + sum.total + " ready"; pillCls = "almost"; pillEmoji = "⏳"; }
+      else { pillLabel = sum.total + " strip" + (sum.total===1?"":"s") + " drying"; pillCls = "drying"; pillEmoji = "💨"; }
+      return '' +
+      '<div class="card batch-card" data-open="' + b.id + '">' +
+        '<div class="accent" style="background:' + color + '"></div>' +
+        '<h3>' + esc(b.name) + '</h3>' +
+        '<div class="meta">' + esc(metaBits || "Batch") + ' · started ' + fmtDate(b.startDate) + '</div>' +
+        '<div class="statusrow">' +
+          '<span class="status-pill status-' + pillCls + '">' + pillEmoji + ' ' + pillLabel + '</span>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+    return '<div class="grid">' + cards +
+      '<div class="card batch-card" id="btnNewBatchCard" style="display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-weight:600;min-height:96px;">+ New batch</div>' +
+    '</div>' + batchModal("create", null);
+  }
+
+  function ingredientRowHTML(name, amount) {
+    return '' +
+    '<div class="row-item" data-row-kind="ing">' +
+      '<input class="rf-a" type="text" name="ingName" list="ingSuggestions" placeholder="e.g. Coriander seed, crushed" value="' + esc(name || "") + '">' +
+      '<input class="rf-b" type="text" name="ingAmount" placeholder="e.g. 2 tbsp / 15g" value="' + esc(amount || "") + '">' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-remove-ing="1" title="Remove">✕</button>' +
+    '</div>';
+  }
+
+  function stripRowHTML(label, weight, thickness) {
+    return '' +
+    '<div class="row-item" data-row-kind="strip">' +
+      '<input class="rf-a" type="text" name="stripLabel" placeholder="e.g. Strip 1" value="' + esc(label || "") + '">' +
+      '<input class="rf-b" type="number" min="1" step="1" name="stripWeightG" placeholder="Weight (g)" value="' + esc(weight != null ? weight : "") + '">' +
+      '<input class="rf-c" type="number" min="1" step="1" name="stripThicknessMm" placeholder="Thickness (mm)" value="' + esc(thickness != null ? thickness : "") + '">' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-remove-strip="1" title="Remove">✕</button>' +
+    '</div>';
+  }
+
+  function batchModal(mode, batch) {
+    var isEdit = mode === "edit" && batch;
+    var today = todayISO();
+    var ingredients = isEdit ? batch.ingredients : DEFAULT_INGREDIENTS;
+    var ingRows = (ingredients && ingredients.length ? ingredients : [{name:"",amount:""}]).map(function(i){ return ingredientRowHTML(i.name, i.amount); }).join("");
+    var overlayId = isEdit ? "editBatchOverlay" : "newBatchOverlay";
+    var formId = isEdit ? "editBatchForm" : "newBatchForm";
+    var cancelId = isEdit ? "btnCancelEditBatch" : "btnCancelNewBatch";
+
+    var stripsSection = "";
+    if (!isEdit) {
+      var defaultStrips = [{label:"Strip 1"},{label:"Strip 2"},{label:"Strip 3"}];
+      var stripRows = defaultStrips.map(function(s){ return stripRowHTML(s.label, null, null); }).join("");
+      stripsSection = '' +
+        '<div class="field"><label>Strips going in — weigh each one</label>' +
+          '<div class="row-fields" id="stripRows">' + stripRows + '</div>' +
+          '<button type="button" class="btn btn-ghost btn-sm row-add" data-add-strip="1">+ Add strip</button>' +
+          '<div class="hint">Each strip dries at its own rate depending on its size — tracking them separately gives you a suggested ready weight and date for each.</div>' +
+        '</div>';
+    }
+
+    return '' +
+    '<datalist id="ingSuggestions">' + INGREDIENT_SUGGESTIONS.map(function(s){ return '<option value="' + esc(s) + '">'; }).join("") + '</datalist>' +
+    '<div class="modal-overlay" id="' + overlayId + '" hidden>' +
+      '<div class="modal">' +
+        '<h2>' + (isEdit ? "Edit batch" : "New batch") + '</h2>' +
+        '<p class="hint-top">' + (isEdit ? "Update the details for this drying run." : "Enter the details for this drying run, then list each strip going in. You can tweak the target later.") + '</p>' +
+        '<form id="' + formId + '">' +
+          (isEdit ? '<input type="hidden" name="batchId" value="' + batch.id + '">' : '') +
+          '<div class="field"><label>Batch name</label><input name="name" placeholder="e.g. Beef silverside #4" required value="' + esc(isEdit ? batch.name : "") + '"></div>' +
+          '<div class="field-row">' +
+            '<div class="field"><label>Meat type</label><input name="meatType" placeholder="Beef, ostrich..." value="' + esc(isEdit ? batch.meatType : "") + '"></div>' +
+            '<div class="field"><label>Cut</label><input name="cut" placeholder="Silverside, topside..." value="' + esc(isEdit ? batch.cut : "") + '"></div>' +
+          '</div>' +
+          '<div class="field-row">' +
+            '<div class="field"><label>Start date</label><input type="date" name="startDate" value="' + (isEdit ? batch.startDate : today) + '" required></div>' +
+            '<div class="field"><label>Target weight loss (%)</label><input type="number" name="targetLossPct" min="15" max="70" value="' + (isEdit ? batch.targetLossPct : 40) + '" required></div>' +
+          '</div>' +
+          '<div class="field"><label>Drying setup</label>' +
+            '<select name="dryingSetup">' + DRYING_SETUPS.map(function(s){ var sel = isEdit ? (batch.dryingSetup === s) : (s === "Biltong box (fan only)"); return '<option ' + (sel ? "selected" : "") + '>' + s + '</option>'; }).join("") + '</select>' +
+          '</div>' +
+          '<div class="field"><label>Fan speed (typical setting — box fan, no bulb)</label>' +
+            '<select name="fanSpeed"><option value="">—</option>' + FAN_SPEEDS.map(function(s){ return '<option ' + (isEdit && batch.fanSpeed === s ? "selected" : "") + '>' + s + '</option>'; }).join("") + '</select>' +
+            '<div class="hint">Used (with box temp/humidity you log) to estimate drying time before you have real weight data.</div>' +
+          '</div>' +
+          stripsSection +
+          '<div class="field"><label>Marinade / spice ingredients</label>' +
+            '<div class="row-fields" id="ingredientRows">' + ingRows + '</div>' +
+            '<button type="button" class="btn btn-ghost btn-sm row-add" data-add-ing="1">+ Add ingredient</button>' +
+            '<div class="hint">Start typing for suggestions — quantities can be anything you use (tbsp, g, %, splashes...).</div>' +
+          '</div>' +
+          '<div class="field"><label>Method / cure notes</label><textarea name="methodNotes" placeholder="Cure time, vinegar dunk, hanging notes, anything else...">' + esc(isEdit ? batch.methodNotes : "") + '</textarea></div>' +
+          '<div class="form-actions">' +
+            '<button type="button" class="btn btn-ghost" id="' + cancelId + '">Cancel</button>' +
+            '<button type="submit" class="btn btn-primary">' + (isEdit ? "Save changes" : "Create batch") + '</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function stripModal(mode, batch, strip) {
+    var isEdit = mode === "edit" && strip;
+    var overlayId = isEdit ? "editStripOverlay" : "addStripOverlay";
+    var formId = isEdit ? "editStripForm" : "addStripForm";
+    return '' +
+    '<div class="modal-overlay" id="' + overlayId + '" hidden>' +
+      '<div class="modal" style="max-width:420px;">' +
+        '<h2>' + (isEdit ? "Edit strip" : "Add a strip") + '</h2>' +
+        '<p class="hint-top">' + (isEdit ? "Correct this strip's details." : "Cutting an extra strip after the batch started? Add it here.") + '</p>' +
+        '<form id="' + formId + '">' +
+          (isEdit ? '<input type="hidden" name="stripId" value="' + strip.id + '">' : '') +
+          '<div class="field"><label>Label</label><input name="label" required placeholder="e.g. Strip 4" value="' + esc(isEdit ? strip.label : "") + '"></div>' +
+          '<div class="field-row">' +
+            '<div class="field"><label>Initial weight (g)</label><input type="number" name="initialWeightG" min="1" step="1" required value="' + (isEdit ? strip.initialWeightG : "") + '"></div>' +
+            '<div class="field"><label>Thickness (mm)</label><input type="number" name="thicknessMm" min="1" step="1" value="' + (isEdit && strip.thicknessMm ? strip.thicknessMm : "") + '"></div>' +
+          '</div>' +
+          '<div class="field"><label>Added date</label><input type="date" name="addedDate" value="' + (isEdit ? strip.addedDate : todayISO()) + '" required></div>' +
+          '<div class="form-actions">' +
+            '<button type="button" class="btn btn-ghost" id="btnCancel' + (isEdit ? "EditStrip" : "AddStrip") + '">Cancel</button>' +
+            '<button type="submit" class="btn btn-primary">' + (isEdit ? "Save changes" : "Add strip") + '</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function parseRowsFromForm(fd, nameField, extraFields) {
+    var names = fd.getAll(nameField);
+    var out = [];
+    for (var i = 0; i < names.length; i++) {
+      var val = (names[i] || "").trim();
+      var row = { primary: val };
+      (extraFields || []).forEach(function(f) { row[f] = fd.getAll(f)[i]; });
+      out.push(row);
+    }
+    return out;
+  }
+
+  function parseIngredientsFromForm(fd) {
+    var names = fd.getAll("ingName"), amounts = fd.getAll("ingAmount"), out = [];
+    for (var i = 0; i < names.length; i++) {
+      var name = (names[i] || "").trim();
+      if (!name) continue;
+      out.push({ name: name, amount: (amounts[i] || "").trim() });
+    }
+    return out;
+  }
+
+  function parseStripRowsFromForm(fd) {
+    var labels = fd.getAll("stripLabel"), weights = fd.getAll("stripWeightG"), thicknesses = fd.getAll("stripThicknessMm"), out = [];
+    for (var i = 0; i < labels.length; i++) {
+      var label = (labels[i] || "").trim();
+      var weight = weights[i] ? Number(weights[i]) : null;
+      if (!label && !weight) continue;
+      out.push({ label: label || ("Strip " + (i + 1)), weightG: weight, thicknessMm: thicknesses[i] ? Number(thicknesses[i]) : null });
+    }
+    return out;
+  }
+
+  function meterBar(pct, target) {
+    var pctClamped = clamp(pct, 0, 999);
+    var scaleMax = Math.ceil(Math.max(target * 1.3, pctClamped * 1.1, 50) / 10) * 10;
+    var fillPct = clamp((pctClamped / scaleMax) * 100, 0, 100);
+    var targetMarkPos = clamp((target / scaleMax) * 100, 0, 100);
+    var color = pct >= target ? "var(--status-good)" : (pct >= target - 5 ? "var(--status-warning)" : "var(--series-1)");
+    return '' +
+    '<div class="meter-wrap">' +
+      '<div class="meter-labels"><span>' + pctClamped.toFixed(1) + '% weight loss</span><span>Target ' + target + '%</span></div>' +
+      '<div class="meter-track">' +
+        '<div class="meter-fill" style="width:' + fillPct + '%; background:' + color + ';"></div>' +
+        '<div class="meter-target-mark" style="left:' + targetMarkPos + '%;"></div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderDetail(b) {
+    var sum = batchSummary(b);
+    var metaBits = [b.meatType, b.cut, b.dryingSetup, b.fanSpeed ? ("fan: " + b.fanSpeed) : ""].filter(Boolean).join(" · ");
+
+    var summaryChips = '' +
+      '<div class="summary-row">' +
+        '<span class="summary-chip"><span class="dot" style="background:var(--status-good);"></span>Ready: <b>' + sum.counts.ready + '</b></span>' +
+        '<span class="summary-chip"><span class="dot" style="background:var(--status-warning);"></span>Almost: <b>' + sum.counts.almost + '</b></span>' +
+        '<span class="summary-chip"><span class="dot" style="background:var(--series-1);"></span>Drying: <b>' + sum.counts.drying + '</b></span>' +
+        (sum.counts.new ? '<span class="summary-chip">Not weighed: <b>' + sum.counts.new + '</b></span>' : '') +
+      '</div>';
+
+    var stripTableRows = sum.rows.map(function(r) {
+      var strip = r.strip, s = r.stats, sm = statusMeta(s.status), color = seriesColor(r.idx);
+      var currentG = s.hasEntries ? s.lastEntry.weightG : strip.initialWeightG;
+      var lossTxt = s.hasEntries ? s.pct.toFixed(1) + "%" : "—";
+      var estTxt;
+      if (s.status === "ready") {
+        estTxt = "Ready" + (s.fastCaution ? " (check — fast)" : "");
+      } else if (s.hasEntries && s.estReadyDate) {
+        estTxt = "~" + fmtDate(s.estReadyDate);
+      } else if (!s.hasEntries) {
+        estTxt = fmtDate(s.estReadyLow) + "–" + fmtDate(s.estReadyHigh) + " (est.)";
+      } else {
+        estTxt = "—";
+      }
+      return '' +
+      '<tr>' +
+        '<td><span class="strip-name-cell"><span class="strip-dot" style="background:' + color + '"></span>' + esc(strip.label) + '</span></td>' +
+        '<td>' + strip.initialWeightG + 'g → ' + currentG + 'g</td>' +
+        '<td>' + lossTxt + '</td>' +
+        '<td>' + s.targetWeightG + 'g</td>' +
+        '<td><span class="status-pill status-' + sm.cls + '">' + sm.emoji + ' ' + sm.label + '</span></td>' +
+        '<td class="est">' + estTxt + '</td>' +
+        '<td class="row-actions">' +
+          '<button class="btn btn-ghost btn-sm" data-edit-strip="' + strip.id + '" title="Edit">✎</button>' +
+          '<button class="btn btn-ghost btn-sm" data-del-strip="' + strip.id + '" title="Delete">✕</button>' +
+        '</td>' +
+      '</tr>';
+    }).join("");
+
+    var stripsTable = sum.total ? ('' +
+      '<div class="card" style="overflow-x:auto;">' +
+        '<table class="data"><thead><tr><th>Strip</th><th>Weight</th><th>Loss</th><th>Target wt.</th><th>Status</th><th>Est. ready</th><th></th></tr></thead><tbody>' + stripTableRows + '</tbody></table>' +
+        '<div class="est-note" style="margin-top:8px;">Est. ready dates are a range (rough heuristic from box temp/humidity/thickness) until a strip has at least one weigh-in, then it switches to a single date from its own measured drying rate.</div>' +
+      '</div>') : '<div class="card"><div class="ing-empty">No strips yet — click "+ Add strip" below.</div></div>';
+
+    var chart = sum.total ? renderChart(b, sum) : "";
+
+    var ingredientsList = (b.ingredients && b.ingredients.filter(function(i){ return i.name; }).length)
+      ? '<ul class="ing-list">' + b.ingredients.filter(function(i){ return i.name; }).map(function(i){ return '<li><span>' + esc(i.name) + '</span><span class="amt">' + esc(i.amount || '') + '</span></li>'; }).join("") + '</ul>'
+      : '<div class="ing-empty">No ingredients logged yet — click Edit to add your spice mix.</div>';
+
+    var today = todayISO();
+    var stripWeighRows = sum.rows.map(function(r) {
+      var strip = r.strip, s = r.stats, color = seriesColor(r.idx);
+      var lastWeight = s.hasEntries ? s.lastEntry.weightG : strip.initialWeightG;
+      return '' +
+      '<div class="strip-weigh-row">' +
+        '<span class="swr-label"><span class="strip-dot" style="background:' + color + '"></span>' + esc(strip.label) + '</span>' +
+        '<input class="swr-input" type="number" min="1" step="1" name="stripWeight_' + strip.id + '" placeholder="' + lastWeight + 'g">' +
+        '<span class="swr-hint">last: ' + lastWeight + 'g</span>' +
+      '</div>';
+    }).join("");
+
+    var dayLogs = dayLogsFor(b.id).slice().reverse();
+    var envRows = dayLogs.map(function(l) {
+      return '' +
+      '<tr>' +
+        '<td>' + fmtDate(l.date) + '</td>' +
+        '<td>' + (l.boxTempC !== "" && l.boxTempC != null ? l.boxTempC + '°C' : '—') + ' / ' + (l.boxHumidityPct !== "" && l.boxHumidityPct != null ? l.boxHumidityPct + '%' : '—') + '</td>' +
+        '<td>' + (l.roomTempC !== "" && l.roomTempC != null ? l.roomTempC + '°C' : '—') + ' / ' + (l.roomHumidityPct !== "" && l.roomHumidityPct != null ? l.roomHumidityPct + '%' : '—') + '</td>' +
+        '<td>' + (l.fanSpeed || '—') + '</td>' +
+        '<td class="notes">' + esc(l.notes || '') + '</td>' +
+        '<td class="row-actions"><button class="btn btn-ghost btn-sm" data-del-daylog="' + l.id + '" title="Delete">✕</button></td>' +
+      '</tr>';
+    }).join("");
+
+    var weightLogRows = [];
+    sum.rows.forEach(function(r) {
+      r.stats.log.forEach(function(w) {
+        var lossPct = ((r.strip.initialWeightG - w.weightG) / r.strip.initialWeightG) * 100;
+        weightLogRows.push({ date: w.date, createdAt: w.createdAt, html: '' +
+          '<tr>' +
+            '<td>' + fmtDate(w.date) + '</td>' +
+            '<td><span class="strip-name-cell"><span class="strip-dot" style="background:' + seriesColor(r.idx) + '"></span>' + esc(r.strip.label) + '</span></td>' +
+            '<td>' + w.weightG + 'g</td>' +
+            '<td>' + lossPct.toFixed(1) + '%</td>' +
+            '<td class="row-actions"><button class="btn btn-ghost btn-sm" data-del-stripweight="' + w.id + '" title="Delete">✕</button></td>' +
+          '</tr>' });
+      });
+    });
+    weightLogRows.sort(function(a,b2){ return b2.date.localeCompare(a.date) || b2.createdAt - a.createdAt; });
+
+    return '' +
+    '<div class="backrow"><button class="btn btn-ghost" id="btnBack">← All batches</button></div>' +
+    '<div class="card">' +
+      '<div class="detail-head">' +
+        '<div><h2>' + esc(b.name) + '</h2><div class="meta">' + esc(metaBits) + '<br>Started ' + fmtDate(b.startDate) + '</div></div>' +
+        '<div class="detail-actions"><button class="btn btn-sm" id="btnEditBatch">Edit details</button><button class="btn btn-sm btn-danger" id="btnDeleteBatch">Delete batch</button></div>' +
+      '</div>' +
+      summaryChips +
+    '</div>' +
+
+    '<div class="section-title">Strips<button class="btn btn-ghost btn-sm" id="btnAddStrip">+ Add strip</button></div>' +
+    stripsTable +
+    stripModal("add", b, null) +
+
+    (chart ? '<div class="section-title">Weight loss over time</div><div class="card chart-card">' + chart + '</div>' : '') +
+
+    '<div class="section-title">Marinade &amp; spice mix</div>' +
+    '<div class="card">' + ingredientsList + (b.methodNotes ? '<div class="hint" style="margin-top:10px;">' + esc(b.methodNotes) + '</div>' : '') + '</div>' +
+    batchModal("edit", b) +
+
+    '<div class="section-title">Add today\'s update</div>' +
+    '<div class="card add-entry-card">' +
+      '<form id="entryForm">' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Date</label><input type="date" name="date" value="' + today + '" max="' + today + '" required></div>' +
+          '<div class="field"><label>Fan speed today</label><select name="fanSpeed"><option value="">—</option>' + FAN_SPEEDS.map(function(s2){ return '<option ' + (s2===(b.fanSpeed||"")?"selected":"") + '>' + s2 + '</option>'; }).join("") + '</select></div>' +
+        '</div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Box temp (°C)</label><input type="number" name="boxTempC" step="0.1" placeholder="e.g. 22"></div>' +
+          '<div class="field"><label>Box humidity (%RH)</label><input type="number" name="boxHumidityPct" step="1" placeholder="e.g. 45"></div>' +
+        '</div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Room temp (°C)</label><input type="number" name="roomTempC" step="0.1" placeholder="optional"></div>' +
+          '<div class="field"><label>Room humidity (%RH)</label><input type="number" name="roomHumidityPct" step="1" placeholder="optional"></div>' +
+        '</div>' +
+        (sum.total ? '<div class="field"><label>Strip weights today (leave blank to skip a strip)</label><div class="strip-weigh-list">' + stripWeighRows + '</div></div>' : '') +
+        '<div class="field"><label>Notes</label><textarea name="notes" placeholder="Texture, smell, colour, anything unusual..."></textarea></div>' +
+        '<div class="form-actions"><button type="submit" class="btn btn-primary">Save update</button></div>' +
+      '</form>' +
+    '</div>' +
+
+    '<div class="section-title">Environment log</div>' +
+    (dayLogs.length ? ('<div class="card" style="overflow-x:auto;">' +
+      '<table class="data"><thead><tr><th>Date</th><th>Box T/RH</th><th>Room T/RH</th><th>Fan</th><th>Notes</th><th></th></tr></thead><tbody>' + envRows + '</tbody></table>' +
+    '</div>') : '<div class="card"><div class="ing-empty">No readings logged yet.</div></div>') +
+
+    '<div class="section-title">Strip weight log</div>' +
+    (weightLogRows.length ? ('<div class="card" style="overflow-x:auto;">' +
+      '<table class="data"><thead><tr><th>Date</th><th>Strip</th><th>Weight</th><th>Loss</th><th></th></tr></thead><tbody>' + weightLogRows.map(function(r){return r.html;}).join("") + '</tbody></table>' +
+    '</div>') : '<div class="card"><div class="ing-empty">No weigh-ins logged yet.</div></div>');
+  }
+
+  function renderChart(b, sum) {
+    var directLabel = sum.total <= 4;
+    var W = 660, H = 260, padL = 42, padR = directLabel ? 132 : 20, padT = 16, padB = 30;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+
+    var maxDay = 1, maxPct = 20;
+    sum.rows.forEach(function(r) {
+      r.stats.log.forEach(function(w) {
+        var d = daysBetween(b.startDate, w.date);
+        var pct = ((r.strip.initialWeightG - w.weightG) / r.strip.initialWeightG) * 100;
+        if (d > maxDay) maxDay = d;
+        if (pct > maxPct) maxPct = pct;
+      });
+    });
+    maxPct = Math.ceil(Math.max(maxPct * 1.15, b.targetLossPct * 1.15, 20) / 10) * 10;
+
+    function x(day) { return padL + (day / maxDay) * plotW; }
+    function y(pct) { return padT + plotH - (clamp(pct, 0, maxPct) / maxPct) * plotH; }
+
+    var gridStep = maxPct / 4, gridLines = "";
+    for (var g = 0; g <= 4; g++) {
+      var val = g * gridStep, gy = y(val);
+      gridLines += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + gy + '" y2="' + gy + '" stroke="var(--gridline)" stroke-width="1"></line>';
+      gridLines += '<text x="' + (padL - 8) + '" y="' + (gy + 4) + '" text-anchor="end" font-size="10.5" fill="var(--muted)">' + Math.round(val) + '%</text>';
+    }
+
+    var targetY = y(b.targetLossPct);
+    var targetLine = '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + targetY + '" y2="' + targetY + '" stroke="var(--text-primary)" stroke-opacity="0.45" stroke-width="1.5" stroke-dasharray="4 4"></line>' +
+      '<text x="' + (W - padR) + '" y="' + (targetY - 5) + '" text-anchor="end" font-size="10.5" fill="var(--text-secondary)">Target ' + b.targetLossPct + '%</text>';
+
+    var linesSvg = "", markersSvg = "", labelsSvg = "";
+    sum.rows.forEach(function(r) {
+      var color = seriesColor(r.idx);
+      var pts = r.stats.log.map(function(w) {
+        var d = daysBetween(b.startDate, w.date);
+        var pct = ((r.strip.initialWeightG - w.weightG) / r.strip.initialWeightG) * 100;
+        return { day: d, pct: pct, w: w };
+      });
+      if (pts.length === 0) return;
+      var pathD = pts.map(function(p, i) { return (i === 0 ? "M" : "L") + x(p.day).toFixed(1) + " " + y(p.pct).toFixed(1); }).join(" ");
+      linesSvg += '<path d="' + pathD + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>';
+      pts.forEach(function(p) {
+        var title = esc(r.strip.label) + " — " + fmtDate(p.w.date) + " (day " + p.day + ") — " + p.w.weightG + "g, " + p.pct.toFixed(1) + "% loss";
+        markersSvg += '<circle cx="' + x(p.day).toFixed(1) + '" cy="' + y(p.pct).toFixed(1) + '" r="4" fill="' + color + '" stroke="var(--surface-1)" stroke-width="2" class="pt" data-tip="' + esc(title) + '"><title>' + title + '</title></circle>';
+      });
+      if (directLabel) {
+        var lastPt = pts[pts.length - 1];
+        labelsSvg += '<text x="' + (x(lastPt.day) + 7) + '" y="' + (y(lastPt.pct) + 3) + '" font-size="10.5" fill="' + color + '" font-weight="600">' + esc(r.strip.label) + '</text>';
+      }
+    });
+
+    var xAxisLabels = "", xTickCount = Math.min(maxDay, 6);
+    for (var t = 0; t <= xTickCount; t++) {
+      var dd = Math.round((t / xTickCount) * maxDay);
+      xAxisLabels += '<text x="' + x(dd) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10.5" fill="var(--muted)">Day ' + dd + '</text>';
+    }
+    var baseline = '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + (padT + plotH) + '" y2="' + (padT + plotH) + '" stroke="var(--baseline)" stroke-width="1.5"></line>';
+
+    var legend = '<div class="legend">' + sum.rows.map(function(r) {
+      return '<span class="item"><span class="swatch" style="background:' + seriesColor(r.idx) + '"></span>' + esc(r.strip.label) + '</span>';
+    }).join("") + '<span class="item"><span class="swatch dashed"></span>Target</span></div>';
+
+    return '' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" role="img" aria-label="Weight loss percentage over time by strip">' +
+      gridLines + baseline + targetLine + linesSvg + markersSvg + labelsSvg + xAxisLabels +
+    '</svg>' + legend;
+  }
+
+  /* ---------------- Events ---------------- */
+  function toast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast._h);
+    toast._h = setTimeout(function(){ t.classList.remove("show"); }, 2400);
+  }
+
+  function openOverlay(id) { var el = document.getElementById(id); if (el) el.hidden = false; }
+  function closeOverlay(id) { var el = document.getElementById(id); if (el) el.hidden = true; }
+
+  function bindListEvents() {
+    var btnNew = document.getElementById("btnNewBatch");
+    var btnNewCard = document.getElementById("btnNewBatchCard");
+    if (btnNew) btnNew.addEventListener("click", function(){ openOverlay("newBatchOverlay"); });
+    if (btnNewCard) btnNewCard.addEventListener("click", function(){ openOverlay("newBatchOverlay"); });
+
+    var btnExample = document.getElementById("btnLoadExample");
+    if (btnExample) btnExample.addEventListener("click", function() { loadExampleBatch(); render(); });
+
+    document.querySelectorAll("[data-open]").forEach(function(el) {
+      el.addEventListener("click", function() {
+        state.selectedBatchId = el.getAttribute("data-open");
+        state.view = "detail";
+        render();
+      });
+    });
+
+    var cancelBtn = document.getElementById("btnCancelNewBatch");
+    if (cancelBtn) cancelBtn.addEventListener("click", function() { closeOverlay("newBatchOverlay"); });
+    var overlay = document.getElementById("newBatchOverlay");
+    if (overlay) overlay.addEventListener("click", function(e) { if (e.target === overlay) overlay.hidden = true; });
+
+    var form = document.getElementById("newBatchForm");
+    if (form) form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var fd = new FormData(form);
+      var batchId = uid();
+      var data = {
+        id: batchId,
+        name: fd.get("name").trim() || "Untitled batch",
+        meatType: fd.get("meatType").trim(),
+        cut: fd.get("cut").trim(),
+        startDate: fd.get("startDate") || todayISO(),
+        targetLossPct: Number(fd.get("targetLossPct")) || 40,
+        dryingSetup: fd.get("dryingSetup"),
+        fanSpeed: fd.get("fanSpeed") || "",
+        ingredients: parseIngredientsFromForm(fd),
+        methodNotes: fd.get("methodNotes").trim(),
+        createdAt: Date.now()
+      };
+      addBatch(data);
+      parseStripRowsFromForm(fd).forEach(function(row) {
+        if (!row.weightG) return;
+        addStrip({ id: uid(), batchId: batchId, label: row.label, initialWeightG: row.weightG, thicknessMm: row.thicknessMm, addedDate: data.startDate, createdAt: Date.now() });
+      });
+      state.selectedBatchId = batchId;
+      state.view = "detail";
+      render();
+      toast("Batch created");
+    });
+
+    bindGlobalEvents();
+  }
+
+  function bindDetailEvents(b) {
+    document.getElementById("btnBack").addEventListener("click", function() { state.view = "list"; state.selectedBatchId = null; render(); });
+
+    var delBatchBtn = document.getElementById("btnDeleteBatch");
+    if (delBatchBtn) delBatchBtn.addEventListener("click", function() {
+      if (confirm('Delete "' + b.name + '" and all its strips/log entries? This cannot be undone (unless you have a backup).')) {
+        deleteBatch(b.id);
+        render();
+        toast("Batch deleted");
+      }
+    });
+
+    var editBtn = document.getElementById("btnEditBatch");
+    if (editBtn) editBtn.addEventListener("click", function() { openOverlay("editBatchOverlay"); });
+    var editOverlay = document.getElementById("editBatchOverlay");
+    if (editOverlay) editOverlay.addEventListener("click", function(e) { if (e.target === editOverlay) editOverlay.hidden = true; });
+    var editCancel = document.getElementById("btnCancelEditBatch");
+    if (editCancel) editCancel.addEventListener("click", function() { closeOverlay("editBatchOverlay"); });
+    var editForm = document.getElementById("editBatchForm");
+    if (editForm) editForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var fd = new FormData(editForm);
+      editBatch(b.id, {
+        name: fd.get("name").trim() || "Untitled batch",
+        meatType: fd.get("meatType").trim(),
+        cut: fd.get("cut").trim(),
+        startDate: fd.get("startDate") || b.startDate,
+        targetLossPct: Number(fd.get("targetLossPct")) || 40,
+        dryingSetup: fd.get("dryingSetup"),
+        fanSpeed: fd.get("fanSpeed") || "",
+        ingredients: parseIngredientsFromForm(fd),
+        methodNotes: fd.get("methodNotes").trim()
+      });
+      render();
+      toast("Batch updated");
+    });
+
+    // Add strip
+    var addStripBtn = document.getElementById("btnAddStrip");
+    if (addStripBtn) addStripBtn.addEventListener("click", function() { openOverlay("addStripOverlay"); });
+    var addStripOverlay = document.getElementById("addStripOverlay");
+    if (addStripOverlay) addStripOverlay.addEventListener("click", function(e) { if (e.target === addStripOverlay) addStripOverlay.hidden = true; });
+    var cancelAddStrip = document.getElementById("btnCancelAddStrip");
+    if (cancelAddStrip) cancelAddStrip.addEventListener("click", function() { closeOverlay("addStripOverlay"); });
+    var addStripForm = document.getElementById("addStripForm");
+    if (addStripForm) addStripForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var fd = new FormData(addStripForm);
+      addStrip({
+        id: uid(), batchId: b.id, label: fd.get("label").trim() || "Strip",
+        initialWeightG: Number(fd.get("initialWeightG")), thicknessMm: fd.get("thicknessMm") ? Number(fd.get("thicknessMm")) : null,
+        addedDate: fd.get("addedDate") || todayISO(), createdAt: Date.now()
+      });
+      render();
+      toast("Strip added");
+    });
+
+    // Edit / delete strip (delegated per-row buttons, rebuilt on every render so safe to bind directly)
+    document.querySelectorAll("[data-edit-strip]").forEach(function(el) {
+      el.addEventListener("click", function() {
+        var stripId = el.getAttribute("data-edit-strip");
+        var strip = state.strips.find(function(s){ return s.id === stripId; });
+        if (!strip) return;
+        var wrap = document.createElement("div");
+        wrap.innerHTML = stripModal("edit", b, strip);
+        document.body.appendChild(wrap.firstElementChild);
+        openOverlay("editStripOverlay");
+        document.getElementById("btnCancelEditStrip").addEventListener("click", function() {
+          var ov = document.getElementById("editStripOverlay"); if (ov) ov.remove();
+        });
+        document.getElementById("editStripOverlay").addEventListener("click", function(e) {
+          if (e.target.id === "editStripOverlay") e.target.remove();
+        });
+        document.getElementById("editStripForm").addEventListener("submit", function(e2) {
+          e2.preventDefault();
+          var fd2 = new FormData(e2.target);
+          editStrip(stripId, {
+            label: fd2.get("label").trim() || strip.label,
+            initialWeightG: Number(fd2.get("initialWeightG")),
+            thicknessMm: fd2.get("thicknessMm") ? Number(fd2.get("thicknessMm")) : null,
+            addedDate: fd2.get("addedDate") || strip.addedDate
+          });
+          document.getElementById("editStripOverlay").remove();
+          render();
+          toast("Strip updated");
+        });
+      });
+    });
+    document.querySelectorAll("[data-del-strip]").forEach(function(el) {
+      el.addEventListener("click", function() {
+        var stripId = el.getAttribute("data-del-strip");
+        var strip = state.strips.find(function(s){ return s.id === stripId; });
+        if (strip && confirm('Delete "' + strip.label + '" and its weigh-in history?')) {
+          deleteStrip(stripId);
+          render();
+          toast("Strip deleted");
+        }
+      });
+    });
+
+    // Daily update (environment + per-strip weights)
+    var entryForm = document.getElementById("entryForm");
+    if (entryForm) entryForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var fd = new FormData(entryForm);
+      var date = fd.get("date") || todayISO();
+      addDayLog({
+        id: uid(), batchId: b.id, date: date,
+        boxTempC: fd.get("boxTempC") ? Number(fd.get("boxTempC")) : "",
+        boxHumidityPct: fd.get("boxHumidityPct") ? Number(fd.get("boxHumidityPct")) : "",
+        roomTempC: fd.get("roomTempC") ? Number(fd.get("roomTempC")) : "",
+        roomHumidityPct: fd.get("roomHumidityPct") ? Number(fd.get("roomHumidityPct")) : "",
+        fanSpeed: fd.get("fanSpeed") || "",
+        notes: fd.get("notes").trim(),
+        createdAt: Date.now()
+      });
+      var addedAny = false;
+      stripsFor(b.id).forEach(function(strip) {
+        var val = fd.get("stripWeight_" + strip.id);
+        if (val) {
+          addStripWeight({ id: uid(), stripId: strip.id, batchId: b.id, date: date, weightG: Number(val), createdAt: Date.now() });
+          addedAny = true;
+        }
+      });
+      persist();
+      render();
+      toast(addedAny ? "Update saved" : "Reading saved");
+    });
+
+    document.querySelectorAll("[data-del-daylog]").forEach(function(el) {
+      el.addEventListener("click", function() { deleteDayLog(el.getAttribute("data-del-daylog")); render(); });
+    });
+    document.querySelectorAll("[data-del-stripweight]").forEach(function(el) {
+      el.addEventListener("click", function() { deleteStripWeight(el.getAttribute("data-del-stripweight")); render(); });
+    });
+
+    // hover tooltips for chart points
+    var tip = document.getElementById("tooltip");
+    document.querySelectorAll(".pt").forEach(function(el) {
+      el.addEventListener("mousemove", function(ev) {
+        tip.innerHTML = '<div class="d">' + esc(el.getAttribute("data-tip")) + '</div>';
+        tip.style.display = "block";
+        tip.style.left = (ev.clientX + 14) + "px";
+        tip.style.top = (ev.clientY + 14) + "px";
+      });
+      el.addEventListener("mouseleave", function() { tip.style.display = "none"; });
+    });
+
+    bindGlobalEvents();
+  }
+
+  function bindGlobalEvents() {
+    var dismiss = document.getElementById("btnDismissBanner");
+    if (dismiss) dismiss.addEventListener("click", function() { state.bannerDismissed = true; render(); });
+
+    if (firebaseConfigured() || fileHandle) {
+      updateSyncIndicator();
+      var backupBtn = document.getElementById("btnBackupCopy");
+      if (backupBtn) backupBtn.addEventListener("click", exportData);
+    } else if (fsSupported) {
+      var connExisting = document.getElementById("btnConnectExisting");
+      var connNew = document.getElementById("btnConnectNew");
+      if (connExisting) connExisting.addEventListener("click", connectExistingFile);
+      if (connNew) connNew.addEventListener("click", connectNewFile);
+    } else {
+      var exportBtn = document.getElementById("btnExport");
+      if (exportBtn) exportBtn.addEventListener("click", exportData);
+    }
+
+    // present whenever rendered (plain fallback UI, or the Firebase-error safety net)
+    var fileImport = document.getElementById("fileImport");
+    if (fileImport) fileImport.addEventListener("change", function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function() {
+        try { importData(JSON.parse(reader.result)); toast("Data imported"); }
+        catch (err) { alert("Couldn't read that file — make sure it's a JSON export from this tracker."); }
+        render();
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  function loadExampleBatch() {
+    var start = new Date(); start.setDate(start.getDate() - 3);
+    var startISO = start.toISOString().slice(0,10);
+    var b = {
+      id: uid(), name: "Example: Beef silverside", meatType: "Beef", cut: "Silverside",
+      startDate: startISO, targetLossPct: 40, dryingSetup: "Biltong box (fan only)", fanSpeed: "Medium",
+      ingredients: [
+        { name: "Coarse black pepper", amount: "3 tbsp" },
+        { name: "Coriander seed (toasted & crushed)", amount: "3 tbsp" },
+        { name: "Salt", amount: "2% of meat weight" },
+        { name: "Brown / spirit vinegar", amount: "quick dunk + spray" },
+        { name: "Brown sugar", amount: "1 tbsp" }
+      ],
+      methodNotes: "24h fridge cure under weight, vinegar dunk before spicing.",
+      createdAt: Date.now()
+    };
+    state.batches.unshift(b);
+
+    var strips = [
+      { label: "Strip 1 (thick end)", initialWeightG: 480, thicknessMm: 28 },
+      { label: "Strip 2 (mid)", initialWeightG: 360, thicknessMm: 20 },
+      { label: "Strip 3 (thin end)", initialWeightG: 240, thicknessMm: 14 }
+    ];
+    var stripIds = strips.map(function(s) {
+      var id = uid();
+      state.strips.push({ id: id, batchId: b.id, label: s.label, initialWeightG: s.initialWeightG, thicknessMm: s.thicknessMm, addedDate: startISO, createdAt: Date.now() });
+      return { id: id, initial: s.initialWeightG };
+    });
+
+    var offsets = [0, 1, 2, 3];
+    var temps = [21, 20.5, 21.5, 21];
+    var hums = [48, 45, 42, 40];
+    // Rough decelerating-loss curve per strip so the example looks realistic and thinner strips lead.
+    var lossCurves = [
+      [0, 6, 11.5, 16.5],   // thick strip — slower
+      [0, 8, 15.5, 22],     // mid strip
+      [0, 11, 20, 28]       // thin strip — faster
+    ];
+    offsets.forEach(function(off, i) {
+      var d = new Date(start); d.setDate(d.getDate() + off);
+      var dateISO = d.toISOString().slice(0,10);
+      state.dayLogs.push({
+        id: uid(), batchId: b.id, date: dateISO, boxTempC: temps[i], boxHumidityPct: hums[i],
+        roomTempC: "", roomHumidityPct: "", fanSpeed: "Medium", notes: i === 0 ? "Hung up, starting weights taken" : "", createdAt: Date.now() + i
+      });
+      stripIds.forEach(function(sInfo, sIdx) {
+        var lossPct = lossCurves[sIdx][i];
+        var weight = Math.round(sInfo.initial * (1 - lossPct / 100));
+        state.stripWeights.push({ id: uid(), stripId: sInfo.id, batchId: b.id, date: dateISO, weightG: weight, createdAt: Date.now() + i });
+      });
+    });
+    persist();
+  }
+
+  // Delegated, bound once (not per-render) so dynamic rows in whichever modal is
+  // currently open always work without stacking duplicate listeners.
+  document.addEventListener("click", function(e) {
+    var addIng = e.target.closest("[data-add-ing]");
+    if (addIng) {
+      var ingContainer = document.getElementById("ingredientRows");
+      if (ingContainer) ingContainer.insertAdjacentHTML("beforeend", ingredientRowHTML("", ""));
+      return;
+    }
+    var rmIng = e.target.closest("[data-remove-ing]");
+    if (rmIng) { var ingRow = rmIng.closest(".row-item"); if (ingRow) ingRow.remove(); return; }
+
+    var addStripRow = e.target.closest("[data-add-strip]");
+    if (addStripRow) {
+      var stripContainer = document.getElementById("stripRows");
+      if (stripContainer) stripContainer.insertAdjacentHTML("beforeend", stripRowHTML("", null, null));
+      return;
+    }
+    var rmStripRow = e.target.closest("[data-remove-strip]");
+    if (rmStripRow) { var stripRow = rmStripRow.closest(".row-item"); if (stripRow) stripRow.remove(); return; }
+  });
+
+  render();
+  initFirebase().catch(function(err) { console.error(err); });
+})();
+</script>
+</body>
+</html>

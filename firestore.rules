@@ -1,0 +1,24 @@
+rules_version = '2';
+
+// The Biltong Box stores its entire dataset in a single document at
+// biltong/data. These rules require the visitor to be signed in — the app
+// signs everyone in anonymously and automatically, so this doesn't ask you
+// to log in, it just blocks casual/automated access from people who aren't
+// running the app at all (e.g. a script hitting the Firestore REST API
+// directly). This is "good enough for a personal hobby tracker that isn't
+// linked anywhere public" — not bank-grade security. Anyone who loads your
+// GitHub Pages URL becomes an anonymous user and can read/write your data.
+// If you want it locked down to just you, switch to email/password auth
+// and change `request.auth != null` below to check a specific request.auth.uid.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /biltong/data {
+      allow read, write: if request.auth != null;
+    }
+    // Everything else stays closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
