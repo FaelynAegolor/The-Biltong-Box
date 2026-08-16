@@ -202,6 +202,11 @@
    Access autosave, or plain export/import). Fill it in — plus deploy
    this file as index.html on GitHub Pages — to sync live across devices.
    See README.md for the full step-by-step setup.
+
+   Each visitor gets their own isolated store, gated behind Firebase's
+   passwordless email-link sign-in (sendSignInLink / completeSignInFromLink
+   below) — no password to set or remember, just a link sent to their inbox.
+   The doc path is per-user: biltong/{uid}, set once they're signed in.
    ===================================================================== */
 var FIREBASE_CONFIG = {
   apiKey: "AIzaSyDPUN2ojpBHqGZI1uJTFMj9v9z_3skmk7o",
@@ -211,7 +216,7 @@ var FIREBASE_CONFIG = {
   messagingSenderId: "7437355559",
   appId: "1:7437355559:web:dc4feb821ba8932766dc02"
 };
-var FIREBASE_DOC_PATH = "biltong/data"; // one Firestore document holds the whole tracker
+var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
 
 (function () {
   "use strict";
@@ -483,6 +488,12 @@ var FIREBASE_DOC_PATH = "biltong/data"; // one Firestore document holds the whol
   var firebaseReady = false;
   var firebaseError = null;
   var firebaseDb = null;
+  var firebaseUser = null;    // signed-in user object once auth state is known
+  var authChecked = false;    // true once Firebase has reported whether a session exists
+  var authBusy = false;       // sign-in / create-account request in flight
+  var authError = null;       // message shown on the sign-in gate
+  var emailLinkSent = null;   // email address a sign-in link was just sent to
+  var pendingEmailConfirm = false; // true when the page was opened from a sign-in link and needs the email re-typed to complete it
 
   function firebaseConfigured() { return !!(FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey); }
 
@@ -504,25 +515,20 @@ var FIREBASE_DOC_PATH = "biltong/data"; // one Firestore document holds the whol
         firebaseDb = firebase.firestore();
         var persistPromise;
         try { persistPromise = firebaseDb.enablePersistence({ synchronizeTabs: true }).catch(function(){}); } catch (e) { persistPromise = Promise.resolve(); }
-        return persistPromise.then(function(){ return firebase.auth().signInAnonymously(); });
+        return persistPromise;
       })
       .then(function() {
+        if (firebase.auth().isSignInWithEmailLink(window.location.href)) {
+          pendingEmailConfirm = true;
+        }
         firebase.auth().onAuthStateChanged(function(user) {
-          if (!user) return;
-          firebaseDb.doc(FIREBASE_DOC_PATH).onSnapshot(function(snap) {
-            if (snap.exists) {
-              importData(snap.data(), false);
-            } else {
-              firebaseDb.doc(FIREBASE_DOC_PATH).set(exportPayload());
-            }
-            firebaseReady = true;
-            syncState = "saved";
-            render();
-          }, function(err) {
-            console.error(err);
-            firebaseError = err.message;
-            render();
-          });
+          authChecked = true;
+          firebaseUser = user;
+          if (!user) { firebaseReady = false; FIREBASE_DOC_PATH = null; render(); return; }
+          authBusy = false;
+          FIREBASE_DOC_PATH = "biltong/" + user.uid;
+          subscribeToDoc();
+          render();
         });
       })
       .catch(function(err) {
@@ -532,9 +538,58 @@ var FIREBASE_DOC_PATH = "biltong/data"; // one Firestore document holds the whol
       });
   }
 
+  function subscribeToDoc() {
+    firebaseDb.doc(FIREBASE_DOC_PATH).onSnapshot(function(snap) {
+      if (snap.exists) {
+        importData(snap.data(), false);
+      } else {
+        firebaseDb.doc(FIREBASE_DOC_PATH).set(exportPayload());
+      }
+      firebaseReady = true;
+      syncState = "saved";
+      render();
+    }, function(err) {
+      console.error(err);
+      firebaseError = err.message;
+      render();
+    });
+  }
+
+  function sendSignInLink(email) {
+    authError = null; authBusy = true; render();
+    var actionCodeSettings = { url: window.location.origin + window.location.pathname, handleCodeInApp: true };
+    firebase.auth().sendSignInLinkToEmail(email, actionCodeSettings).then(function() {
+      authBusy = false;
+      emailLinkSent = email;
+      render();
+    }).catch(function(err) {
+      authBusy = false;
+      authError = "Couldn't send the link — " + (err.message || err) + ".";
+      render();
+    });
+  }
+
+  function completeSignInFromLink(email) {
+    authError = null; authBusy = true; render();
+    firebase.auth().signInWithEmailLink(email, window.location.href).then(function() {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }).catch(function(err) {
+      authBusy = false;
+      pendingEmailConfirm = false;
+      authError = "That link didn't work — " + (err.message || err) + ". Request a new one below.";
+      window.history.replaceState({}, document.title, window.location.pathname);
+      render();
+    });
+  }
+
+  function signOutUser() {
+    authError = null; emailLinkSent = null;
+    firebase.auth().signOut();
+  }
+
   async function persist() {
     if (firebaseConfigured()) {
-      if (!firebaseDb) return; // still connecting; the initial snapshot write will cover current state
+      if (!firebaseDb || !FIREBASE_DOC_PATH) return; // still connecting; the initial snapshot write will cover current state
       syncState = "saving"; updateSyncIndicator();
       try {
         await firebaseDb.doc(FIREBASE_DOC_PATH).set(exportPayload());
@@ -643,6 +698,11 @@ var FIREBASE_DOC_PATH = "biltong/data"; // one Firestore document holds the whol
   var $app = document.getElementById("app");
 
   function render() {
+    if (firebaseConfigured() && (!authChecked || !firebaseUser || pendingEmailConfirm)) {
+      $app.innerHTML = renderAuthGate();
+      bindAuthGateEvents();
+      return;
+    }
     if (state.view === "detail" && state.selectedBatchId) {
       var b = state.batches.find(function(x){ return x.id === state.selectedBatchId; });
       if (!b) { state.view = "list"; }
@@ -652,10 +712,84 @@ var FIREBASE_DOC_PATH = "biltong/data"; // one Firestore document holds the whol
     bindListEvents();
   }
 
+  function renderAuthGate() {
+    if (firebaseError && !firebaseUser) {
+      return '' +
+      '<div style="max-width:420px;margin:80px auto 0;">' +
+        '<div class="card">' +
+          '<h2 style="margin-top:0;">⚠️ Firebase error</h2>' +
+          '<p style="color:var(--text-secondary);font-size:13px;">' + esc(firebaseError) + '</p>' +
+          '<p style="color:var(--text-secondary);font-size:13px;">Check the browser console for details, or double-check FIREBASE_CONFIG in index.html.</p>' +
+        '</div>' +
+      '</div>';
+    }
+    if (!authChecked) {
+      return '<div style="max-width:420px;margin:80px auto 0;text-align:center;color:var(--text-secondary);">Connecting…</div>';
+    }
+    if (pendingEmailConfirm) {
+      return '' +
+      '<div style="max-width:420px;margin:80px auto 0;">' +
+        '<div class="card">' +
+          '<h2 style="margin-top:0;">Confirm your email</h2>' +
+          '<p style="color:var(--text-secondary);font-size:13px;">Re-enter the email address you requested this sign-in link with, to finish signing in.</p>' +
+          (authError ? '<div class="caution">' + esc(authError) + '</div>' : '') +
+          '<form id="confirmEmailForm">' +
+            '<div class="field"><label>Email</label><input name="email" type="email" placeholder="you@example.com" required' + (authBusy ? ' disabled' : '') + '></div>' +
+            '<div class="form-actions" style="justify-content:flex-start;">' +
+              '<button type="submit" class="btn btn-primary"' + (authBusy ? ' disabled' : '') + '>' + (authBusy ? "Signing in…" : "Continue") + '</button>' +
+            '</div>' +
+          '</form>' +
+        '</div>' +
+      '</div>';
+    }
+    if (emailLinkSent) {
+      return '' +
+      '<div style="max-width:420px;margin:80px auto 0;">' +
+        '<div class="card">' +
+          '<h2 style="margin-top:0;">📬 Check your email</h2>' +
+          '<p style="color:var(--text-secondary);font-size:13px;">We sent a sign-in link to <b>' + esc(emailLinkSent) + '</b>. Open it on this device (or any device — you\'ll just need to confirm your email again) to finish signing in.</p>' +
+          '<button class="btn btn-ghost btn-sm" id="btnUseDifferentEmail">Use a different email</button>' +
+        '</div>' +
+      '</div>';
+    }
+    return '' +
+    '<div style="max-width:420px;margin:80px auto 0;">' +
+      '<div class="card">' +
+        '<h2 style="margin-top:0;">📦 The Biltong Box</h2>' +
+        '<p style="color:var(--text-secondary);font-size:13px;">Each visitor gets their own private tracker. Enter your email and we\'ll send you a sign-in link — no password to remember.</p>' +
+        (authError ? '<div class="caution">' + esc(authError) + '</div>' : '') +
+        '<form id="emailLinkForm">' +
+          '<div class="field"><label>Email</label><input name="email" type="email" placeholder="you@example.com" required' + (authBusy ? ' disabled' : '') + '></div>' +
+          '<div class="form-actions" style="justify-content:flex-start;">' +
+            '<button type="submit" class="btn btn-primary"' + (authBusy ? ' disabled' : '') + '>' + (authBusy ? "Sending…" : "Send me a sign-in link") + '</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function bindAuthGateEvents() {
+    var emailForm = document.getElementById("emailLinkForm");
+    if (emailForm) emailForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var email = new FormData(emailForm).get("email").trim();
+      if (email) sendSignInLink(email);
+    });
+    var confirmForm = document.getElementById("confirmEmailForm");
+    if (confirmForm) confirmForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var email = new FormData(confirmForm).get("email").trim();
+      if (email) completeSignInFromLink(email);
+    });
+    var diffEmailBtn = document.getElementById("btnUseDifferentEmail");
+    if (diffEmailBtn) diffEmailBtn.addEventListener("click", function() { emailLinkSent = null; render(); });
+  }
+
   function renderHeader() {
     var actions;
     if (firebaseConfigured()) {
-      actions = '<span class="sync-pill" id="syncIndicator"></span><button class="btn btn-ghost btn-sm" id="btnBackupCopy" title="Download an extra backup copy">⬇ backup</button>';
+      var acctLabel = firebaseUser && firebaseUser.email ? '<span style="font-size:12px;color:var(--muted);align-self:center;margin-right:2px;">' + esc(firebaseUser.email) + '</span>' : '';
+      actions = acctLabel + '<span class="sync-pill" id="syncIndicator"></span><button class="btn btn-ghost btn-sm" id="btnBackupCopy" title="Download an extra backup copy">⬇ backup</button><button class="btn btn-ghost btn-sm" id="btnSignOut" title="Sign out of this tracker">🚪 sign out</button>';
       if (firebaseError) {
         actions += '<label class="btn btn-sm" for="fileImport" style="margin:0;">⬆ import backup</label><input type="file" id="fileImport" accept="application/json" hidden>';
       }
@@ -1328,6 +1462,12 @@ var FIREBASE_DOC_PATH = "biltong/data"; // one Firestore document holds the whol
       updateSyncIndicator();
       var backupBtn = document.getElementById("btnBackupCopy");
       if (backupBtn) backupBtn.addEventListener("click", exportData);
+      if (firebaseConfigured()) {
+        var signOutBtn = document.getElementById("btnSignOut");
+        if (signOutBtn) signOutBtn.addEventListener("click", function() {
+          if (confirm("Sign out of this tracker? You'll need to request a new email link to get back in.")) signOutUser();
+        });
+      }
     } else if (fsSupported) {
       var connExisting = document.getElementById("btnConnectExisting");
       var connNew = document.getElementById("btnConnectNew");
