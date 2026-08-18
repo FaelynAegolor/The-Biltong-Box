@@ -278,6 +278,24 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
   function fmtDate(iso) { var d = new Date(iso + "T00:00:00"); return d.toLocaleDateString(undefined, {day:"numeric", month:"short"}); }
   function addDaysISO(iso, days) { var d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + Math.round(days)); return d.toISOString().slice(0,10); }
   function daysBetween(a, b) { return Math.round((new Date(b+"T00:00:00") - new Date(a+"T00:00:00")) / 86400000); }
+  function nowTimeHHMM() { var d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  // Precise timestamp for a {date, time} entry — falls back to noon when time
+  // is missing (older entries, or a date logged without a time), so mixing
+  // old date-only records with new timed ones doesn't skew day-to-day math.
+  function entryTimestamp(entry) {
+    var t = entry && entry.time && /^\d{2}:\d{2}$/.test(entry.time) ? entry.time : "12:00";
+    return new Date(entry.date + "T" + t + ":00").getTime();
+  }
+  function stripStartTimestamp(strip) { return entryTimestamp({ date: strip.addedDate, time: strip.addedTime }); }
+  function fmtTime(hhmm) {
+    if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return "";
+    var d = new Date("2000-01-01T" + hhmm + ":00");
+    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+  function fmtDateTime(ms) {
+    var d = new Date(ms);
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
   function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
   function seriesColor(idx) { return "var(" + SERIES_SLOTS[idx % SERIES_SLOTS.length] + ")"; }
@@ -324,7 +342,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       var statusWord = s.status === "almost" ? "close to target" : "drying steadily";
       sentence = esc(strip.label) + " is " + statusWord + " at " + s.pct.toFixed(1) + "% loss, currently losing weight at " + rateTxt + pace + ".";
       sentence += s.estReadyDate
-        ? " At this rate it should hit your " + batch.targetLossPct + "% (" + styleTxt + ") target around " + fmtDate(s.estReadyDate) + "."
+        ? " At this rate it should hit your " + batch.targetLossPct + "% (" + styleTxt + ") target around " + fmtDateTime(s.countdownTarget) + "."
         : " Not enough of a trend yet to project a ready date.";
     }
 
@@ -352,11 +370,11 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
   }
   function stripWeightsFor(stripId) {
     return state.stripWeights.filter(function(w){ return w.stripId === stripId; })
-      .slice().sort(function(a,b){ return a.date.localeCompare(b.date) || a.createdAt - b.createdAt; });
+      .slice().sort(function(a,b){ return entryTimestamp(a) - entryTimestamp(b) || a.createdAt - b.createdAt; });
   }
   function dayLogsFor(batchId) {
     return state.dayLogs.filter(function(d){ return d.batchId === batchId; })
-      .slice().sort(function(a,b){ return a.date.localeCompare(b.date) || a.createdAt - b.createdAt; });
+      .slice().sort(function(a,b){ return entryTimestamp(a) - entryTimestamp(b) || a.createdAt - b.createdAt; });
   }
 
   /* ---------------- Drying-time heuristic ----------------
@@ -453,8 +471,9 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       if (weights.length < 2) return; // need a real fitted rate, not a guess
       var batch = state.batches.find(function(bb) { return bb.id === strip.batchId; });
       if (!batch) return;
+      var stripStartMs = stripStartTimestamp(strip);
       var fitPts = weights.map(function(w) {
-        return { day: daysBetween(strip.addedDate, w.date), pct: clamp(((strip.initialWeightG - w.weightG) / strip.initialWeightG) * 100, -50, 99) };
+        return { day: (entryTimestamp(w) - stripStartMs) / 86400000, pct: clamp(((strip.initialWeightG - w.weightG) / strip.initialWeightG) * 100, -50, 99) };
       });
       var kActual = fitDryingK(fitPts);
       if (!kActual) return;
@@ -516,8 +535,10 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     var estRange = estimateDryingRange(strip.thicknessMm, env.temp, env.hum, batch.dryingSetup, batch.fanSpeed, batch.targetLossPct);
     var targetWeightG = Math.round(strip.initialWeightG * (1 - batch.targetLossPct / 100));
 
+    var stripStartMs = stripStartTimestamp(strip);
+
     if (log.length === 0) {
-      var countdownTarget0 = new Date(strip.addedDate + "T00:00:00").getTime() + estRange.central * 86400000;
+      var countdownTarget0 = stripStartMs + estRange.central * 86400000;
       var heuristicRateNow0 = dryRateAtDay(0, estRange.k);
       return {
         hasEntries: false, pct: 0, daysElapsed: 0, log: log, status: "new",
@@ -530,13 +551,15 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     var last = log[log.length - 1];
     var pct = ((strip.initialWeightG - last.weightG) / strip.initialWeightG) * 100;
     pct = clamp(pct, -50, 99);
-    var daysElapsed = daysBetween(strip.addedDate, last.date);
+    var lastMs = entryTimestamp(last);
+    var daysElapsed = (lastMs - stripStartMs) / 86400000;
 
     // Fit this strip's own decay rate from its real weigh-ins (strip-relative
-    // days, so day 0 = its own added date) — drying is decelerating, so this
-    // extrapolates along the same curve shape instead of a flat/linear rate.
+    // days, so day 0 = its own added date/time) — drying is decelerating, so
+    // this extrapolates along the same curve shape instead of a flat/linear
+    // rate. Uses real weigh-in times when logged, not just whole days.
     var fitPts = log.map(function(w) {
-      return { day: daysBetween(strip.addedDate, w.date), pct: clamp(((strip.initialWeightG - w.weightG) / strip.initialWeightG) * 100, -50, 99) };
+      return { day: (entryTimestamp(w) - stripStartMs) / 86400000, pct: clamp(((strip.initialWeightG - w.weightG) / strip.initialWeightG) * 100, -50, 99) };
     });
     var kEff = fitDryingK(fitPts);
 
@@ -546,7 +569,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     } else if (log.length >= 2) {
       var prev = log[log.length - 2];
       var prevPct = ((strip.initialWeightG - prev.weightG) / strip.initialWeightG) * 100;
-      var dDays = daysBetween(prev.date, last.date);
+      var dDays = (lastMs - entryTimestamp(prev)) / 86400000;
       if (dDays > 0) rate = (pct - prevPct) / dDays;
     }
     if (rate === null && daysElapsed > 0) rate = pct / daysElapsed;
@@ -565,12 +588,12 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
         if (exactRemaining > 0) {
           daysRemaining = Math.ceil(exactRemaining);
           estReadyDate = addDaysISO(last.date, daysRemaining);
-          countdownTarget = new Date(strip.addedDate + "T00:00:00").getTime() + dayForTarget * 86400000;
+          countdownTarget = stripStartMs + dayForTarget * 86400000;
         }
       } else if (rate && rate > 0) {
         daysRemaining = Math.ceil((target - pct) / rate);
         estReadyDate = addDaysISO(last.date, daysRemaining);
-        countdownTarget = new Date(last.date + "T00:00:00").getTime() + ((target - pct) / rate) * 86400000;
+        countdownTarget = lastMs + ((target - pct) / rate) * 86400000;
       }
     }
 
@@ -1192,7 +1215,10 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
             '<div class="field"><label>Initial weight (g)</label><input type="number" name="initialWeightG" min="1" step="1" required value="' + (isEdit ? strip.initialWeightG : "") + '"></div>' +
             '<div class="field"><label>Thickness (mm)</label><input type="number" name="thicknessMm" min="1" step="1" value="' + (isEdit && strip.thicknessMm ? strip.thicknessMm : "") + '"></div>' +
           '</div>' +
-          '<div class="field"><label>Added date</label><input type="date" name="addedDate" value="' + (isEdit ? strip.addedDate : todayISO()) + '" required></div>' +
+          '<div class="field-row">' +
+            '<div class="field"><label>Added date</label><input type="date" name="addedDate" value="' + (isEdit ? strip.addedDate : todayISO()) + '" required></div>' +
+            '<div class="field"><label>Added time</label><input type="time" name="addedTime" value="' + (isEdit && strip.addedTime ? strip.addedTime : nowTimeHHMM()) + '"></div>' +
+          '</div>' +
           (isEdit ? (
             '<div class="field"><label>How did it turn out?</label>' +
               '<select name="texture">' +
@@ -1282,7 +1308,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       if (s.status === "ready") {
         estTxt = "Ready" + (s.fastCaution ? " (check — fast)" : "");
       } else if (s.hasEntries && s.estReadyDate) {
-        estTxt = "~" + fmtDate(s.estReadyDate);
+        estTxt = "~" + fmtDateTime(s.countdownTarget);
       } else if (!s.hasEntries) {
         estTxt = fmtDate(s.estReadyLow) + "–" + fmtDate(s.estReadyHigh) + " (est.)";
       } else {
@@ -1349,7 +1375,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     var envRows = dayLogs.map(function(l) {
       return '' +
       '<tr>' +
-        '<td>' + fmtDate(l.date) + '</td>' +
+        '<td>' + fmtDate(l.date) + (l.time ? ', ' + fmtTime(l.time) : '') + '</td>' +
         '<td>' + (l.boxTempC !== "" && l.boxTempC != null ? l.boxTempC + '°C' : '—') + ' / ' + (l.boxHumidityPct !== "" && l.boxHumidityPct != null ? l.boxHumidityPct + '%' : '—') + '</td>' +
         '<td>' + (l.roomTempC !== "" && l.roomTempC != null ? l.roomTempC + '°C' : '—') + ' / ' + (l.roomHumidityPct !== "" && l.roomHumidityPct != null ? l.roomHumidityPct + '%' : '—') + '</td>' +
         '<td>' + (l.fanSpeed || '—') + '</td>' +
@@ -1364,7 +1390,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
         var lossPct = ((r.strip.initialWeightG - w.weightG) / r.strip.initialWeightG) * 100;
         weightLogRows.push({ date: w.date, createdAt: w.createdAt, html: '' +
           '<tr>' +
-            '<td>' + fmtDate(w.date) + '</td>' +
+            '<td>' + fmtDate(w.date) + (w.time ? ', ' + fmtTime(w.time) : '') + '</td>' +
             '<td><span class="strip-name-cell"><span class="strip-dot" style="background:' + seriesColor(r.idx) + '"></span>' + esc(r.strip.label) + '</span></td>' +
             '<td>' + w.weightG + 'g</td>' +
             '<td>' + lossPct.toFixed(1) + '%</td>' +
@@ -1413,6 +1439,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       '<form id="entryForm">' +
         '<div class="field-row">' +
           '<div class="field"><label>Date</label><input type="date" name="date" value="' + today + '" max="' + today + '" required></div>' +
+          '<div class="field"><label>Time</label><input type="time" name="time" value="' + nowTimeHHMM() + '"></div>' +
           '<div class="field"><label>Fan speed today</label><select name="fanSpeed"><option value="">—</option>' + FAN_SPEEDS.map(function(s2){ return '<option ' + (s2===(b.fanSpeed||"")?"selected":"") + '>' + s2 + '</option>'; }).join("") + '</select></div>' +
         '</div>' +
         '<div class="field-row">' +
@@ -1511,9 +1538,10 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
         fitSvg += '<path d="' + curvePath(d0, r.stats.kEff, d0) + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="2 4"></path>';
       }
       pts.forEach(function(p) {
+        var whenTxt = fmtDate(p.w.date) + (p.w.time ? ", " + fmtTime(p.w.time) : "");
         var title = p.isStart
-          ? esc(r.strip.label) + " — " + fmtDate(p.w.date) + " (day " + p.day + ") — starting weight " + p.w.weightG + "g"
-          : esc(r.strip.label) + " — " + fmtDate(p.w.date) + " (day " + p.day + ") — " + p.w.weightG + "g, " + p.pct.toFixed(1) + "% loss";
+          ? esc(r.strip.label) + " — " + whenTxt + " (day " + p.day + ") — starting weight " + p.w.weightG + "g"
+          : esc(r.strip.label) + " — " + whenTxt + " (day " + p.day + ") — " + p.w.weightG + "g, " + p.pct.toFixed(1) + "% loss";
         markersSvg += '<circle cx="' + x(p.day).toFixed(1) + '" cy="' + y(p.pct).toFixed(1) + '" r="4" fill="' + color + '" stroke="var(--surface-1)" stroke-width="2" class="pt" data-tip="' + esc(title) + '"><title>' + title + '</title></circle>';
       });
       if (directLabel) {
@@ -1564,8 +1592,8 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     var boxPts = [], roomPts = [];
     logs.forEach(function(l) {
       var d = daysBetween(b.startDate, l.date);
-      if (l[boxField] !== "" && l[boxField] != null) boxPts.push({ day: d, val: Number(l[boxField]), date: l.date });
-      if (l[roomField] !== "" && l[roomField] != null) roomPts.push({ day: d, val: Number(l[roomField]), date: l.date });
+      if (l[boxField] !== "" && l[boxField] != null) boxPts.push({ day: d, val: Number(l[boxField]), date: l.date, time: l.time });
+      if (l[roomField] !== "" && l[roomField] != null) roomPts.push({ day: d, val: Number(l[roomField]), date: l.date, time: l.time });
     });
     if (boxPts.length === 0 && roomPts.length === 0) return "";
 
@@ -1600,7 +1628,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       var pathD = sorted.map(function(p, i) { return (i === 0 ? "M" : "L") + x(p.day).toFixed(1) + " " + y(p.val).toFixed(1); }).join(" ");
       var svg = '<path d="' + pathD + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>';
       sorted.forEach(function(p) {
-        var title = seriesLabel + " — " + fmtDate(p.date) + " (day " + p.day + ") — " + p.val + unit;
+        var title = seriesLabel + " — " + fmtDate(p.date) + (p.time ? ", " + fmtTime(p.time) : "") + " (day " + p.day + ") — " + p.val + unit;
         svg += '<circle cx="' + x(p.day).toFixed(1) + '" cy="' + y(p.val).toFixed(1) + '" r="4" fill="' + color + '" stroke="var(--surface-1)" stroke-width="2" class="pt" data-tip="' + esc(title) + '"><title>' + esc(title) + '</title></circle>';
       });
       return svg;
@@ -1751,7 +1779,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       addStrip({
         id: uid(), batchId: b.id, label: fd.get("label").trim() || "Strip",
         initialWeightG: Number(fd.get("initialWeightG")), thicknessMm: fd.get("thicknessMm") ? Number(fd.get("thicknessMm")) : null,
-        addedDate: fd.get("addedDate") || todayISO(), texture: null, createdAt: Date.now()
+        addedDate: fd.get("addedDate") || todayISO(), addedTime: fd.get("addedTime") || "", texture: null, createdAt: Date.now()
       });
       render();
       toast("Strip added");
@@ -1781,6 +1809,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
             initialWeightG: Number(fd2.get("initialWeightG")),
             thicknessMm: fd2.get("thicknessMm") ? Number(fd2.get("thicknessMm")) : null,
             addedDate: fd2.get("addedDate") || strip.addedDate,
+            addedTime: fd2.get("addedTime") || "",
             texture: fd2.get("texture") || null
           });
           document.getElementById("editStripOverlay").remove();
@@ -1807,8 +1836,9 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       e.preventDefault();
       var fd = new FormData(entryForm);
       var date = fd.get("date") || todayISO();
+      var time = fd.get("time") || "";
       addDayLog({
-        id: uid(), batchId: b.id, date: date,
+        id: uid(), batchId: b.id, date: date, time: time,
         boxTempC: fd.get("boxTempC") ? Number(fd.get("boxTempC")) : "",
         boxHumidityPct: fd.get("boxHumidityPct") ? Number(fd.get("boxHumidityPct")) : "",
         roomTempC: fd.get("roomTempC") ? Number(fd.get("roomTempC")) : "",
@@ -1821,7 +1851,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       stripsFor(b.id).forEach(function(strip) {
         var val = fd.get("stripWeight_" + strip.id);
         if (val) {
-          addStripWeight({ id: uid(), stripId: strip.id, batchId: b.id, date: date, weightG: Number(val), createdAt: Date.now() });
+          addStripWeight({ id: uid(), stripId: strip.id, batchId: b.id, date: date, time: time, weightG: Number(val), createdAt: Date.now() });
           addedAny = true;
         }
       });
