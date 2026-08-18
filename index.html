@@ -7,15 +7,16 @@
 <style>
   :root { color-scheme: light; }
   .viz-root {
-    --surface-1:      #fcfcfb;
-    --surface-2:      #f3f2ee;
-    --page:           #f9f9f7;
-    --text-primary:   #0b0b0b;
-    --text-secondary: #52514e;
-    --muted:          #898781;
-    --gridline:       #e1e0d9;
-    --baseline:       #c3c2b7;
-    --border:         rgba(11,11,11,0.10);
+    --surface-1:      #fffcf6;
+    --surface-2:      #f1e6d3;
+    --page:           #f8f3ea;
+    --text-primary:   #2b2015;
+    --text-secondary: #6b5842;
+    --muted:          #9c8a72;
+    --gridline:       #e6dac0;
+    --baseline:       #cdb999;
+    --border:         rgba(43,32,21,0.12);
+    --accent:         #a8461f;
     --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
     --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
     --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #d03b3b;
@@ -23,15 +24,16 @@
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) .viz-root {
       color-scheme: dark;
-      --surface-1:      #1a1a19;
-      --surface-2:      #232322;
-      --page:           #0d0d0d;
-      --text-primary:   #ffffff;
-      --text-secondary: #c3c2b7;
-      --muted:          #898781;
-      --gridline:       #2c2c2a;
-      --baseline:       #383835;
-      --border:         rgba(255,255,255,0.10);
+      --surface-1:      #211a10;
+      --surface-2:      #2b2216;
+      --page:           #171208;
+      --text-primary:   #f5ecdd;
+      --text-secondary: #c9b696;
+      --muted:          #9c8a72;
+      --gridline:       #372c1c;
+      --baseline:       #4a3c26;
+      --border:         rgba(245,236,220,0.12);
+      --accent:         #c2632f;
       --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
       --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
       --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #e66767;
@@ -39,15 +41,16 @@
   }
   :root[data-theme="dark"] .viz-root {
     color-scheme: dark;
-    --surface-1:      #1a1a19;
-    --surface-2:      #232322;
-    --page:           #0d0d0d;
-    --text-primary:   #ffffff;
-    --text-secondary: #c3c2b7;
-    --muted:          #898781;
-    --gridline:       #2c2c2a;
-    --baseline:       #383835;
-    --border:         rgba(255,255,255,0.10);
+    --surface-1:      #211a10;
+    --surface-2:      #2b2216;
+    --page:           #171208;
+    --text-primary:   #f5ecdd;
+    --text-secondary: #c9b696;
+    --muted:          #9c8a72;
+    --gridline:       #372c1c;
+    --baseline:       #4a3c26;
+    --border:         rgba(245,236,220,0.12);
+    --accent:         #c2632f;
     --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
     --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
     --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #e66767;
@@ -57,20 +60,24 @@
   html, body { margin: 0; padding: 0; }
   body {
     background: var(--page);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
     color: var(--text-primary);
   }
   .app { max-width: 980px; margin: 0 auto; padding: 20px 16px 64px; }
+  .app h1, .app h2, .app h3 {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    letter-spacing: 0.01em;
+  }
 
   header.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 4px; flex-wrap: wrap; }
-  header.top h1 { font-size: 22px; margin: 0 0 2px; }
+  header.top h1 { font-size: 24px; margin: 0 0 2px; }
   header.top p.sub { margin: 0; color: var(--text-secondary); font-size: 13px; }
   .top-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
   button { font-family: inherit; cursor: pointer; }
   .btn { border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; }
   .btn:hover { background: var(--surface-2); }
-  .btn-primary { background: var(--series-1); color: #fff; border-color: transparent; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: transparent; }
   .btn-primary:hover { filter: brightness(1.06); }
   .btn-ghost { background: transparent; border-color: transparent; color: var(--text-secondary); }
   .btn-ghost:hover { background: var(--surface-2); }
@@ -143,8 +150,8 @@
   form .field label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; color: var(--text-secondary); }
   form .field-row { display: flex; gap: 10px; flex-wrap: wrap; }
   form .field-row .field { flex: 1; min-width: 140px; }
-  input, select, textarea { width: 100%; font-family: inherit; font-size: 13.5px; padding: 8px 9px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
-  input:focus, select:focus, textarea:focus { outline: 2px solid var(--series-1); outline-offset: 0; }
+  input, select, textarea { width: 100%; font-family: inherit; font-size: 13.5px; padding: 8px 9px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); accent-color: var(--accent); }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; }
   textarea { resize: vertical; min-height: 54px; }
   form .hint { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
   .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
@@ -188,10 +195,19 @@
   .strip-weigh-row .swr-hint { flex: 1; font-size: 11.5px; color: var(--muted); }
 
   .est-note { font-size: 11px; color: var(--muted); }
+
+  .insight-list { display: flex; flex-direction: column; }
+  .insight-row { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed var(--gridline); font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .insight-row:last-child { border-bottom: none; }
+  .insight-row .strip-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+  .chart-controls { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-secondary); margin: 8px 0 4px; }
+  .chart-controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .chart-controls input { width: auto; }
 </style>
 </head>
-<body>
-<div class="app viz-root" id="app"></div>
+<body class="viz-root">
+<div class="app" id="app"></div>
 <div class="tooltip" id="tooltip"></div>
 <div class="toast" id="toast"></div>
 
@@ -232,21 +248,26 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     bannerDismissed: false
   };
 
+  // View-only chart preferences — not persisted/synced, just how this browser tab is looking at the data right now.
+  var chartShowPerStripFit = true;
+  var chartShowCombinedFit = false;
+
   var DRYING_SETUPS = ["Biltong box (fan only)", "Biltong box (fan + bulb)", "Ambient hanging", "Fridge", "Other"];
   var FAN_SPEEDS = ["High", "Medium", "Low"];
   var SERIES_SLOTS = ["--series-1","--series-2","--series-3","--series-4","--series-5","--series-6","--series-7","--series-8"];
 
   var INGREDIENT_SUGGESTIONS = [
-    "Coarse black pepper", "Coriander seed (toasted & crushed)", "Salt", "Brown / spirit vinegar",
-    "Worcestershire sauce", "Brown sugar", "Bicarbonate of soda", "Chilli flakes", "Garlic (fresh or powder)",
-    "Paprika", "Cure #2 / Instacure", "Fennel seed", "Ground cloves", "Onion powder", "Ginger"
+    "Rainbow peppercorns", "Coarse black pepper", "Coriander seed (toasted & crushed)", "Salt",
+    "Malt vinegar", "Brown / spirit vinegar", "Henderson's Relish", "Worcestershire sauce", "Brown sugar",
+    "Bicarbonate of soda", "Chilli flakes", "Garlic (fresh or powder)", "Paprika", "Cure #2 / Instacure",
+    "Fennel seed", "Ground cloves", "Onion powder", "Ginger"
   ];
   var DEFAULT_INGREDIENTS = [
-    { name: "Coarse black pepper", amount: "" },
+    { name: "Rainbow peppercorns", amount: "" },
     { name: "Coriander seed (toasted & crushed)", amount: "" },
     { name: "Salt", amount: "" },
-    { name: "Brown / spirit vinegar", amount: "" },
-    { name: "Worcestershire sauce", amount: "" },
+    { name: "Malt vinegar", amount: "" },
+    { name: "Henderson's Relish", amount: "" },
     { name: "Brown sugar", amount: "" }
   ];
 
@@ -258,6 +279,65 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
   function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
   function seriesColor(idx) { return "var(" + SERIES_SLOTS[idx % SERIES_SLOTS.length] + ")"; }
+
+  // Bands for biltong "wetness" by weight loss: ~50% wet, ~60% medium, ~70%
+  // dry — cross-checked against several biltong-specific sources (2 Guys & A
+  // Cooler: 50% wet / 70% dry, https://twoguysandacooler.com/biltong/;
+  // biltongmakers.com FAQ: "~50%+" as a general rule of thumb; The Herd
+  // Biltong: 40–60% overall range), well above generic jerky/dehydrator
+  // guidance, which is a different product. Boundaries sit at the midpoints
+  // between those three reference values.
+  function styleForLossPct(pct) {
+    if (pct < 55) return "wet";
+    if (pct < 65) return "medium";
+    return "dry";
+  }
+
+  // A generated (not live-AI) natural-language read on how a strip is doing,
+  // built from the same numbers already driving the rest of the UI.
+  function generateInsight(strip, batch, s) {
+    var styleTxt = styleForLossPct(batch.targetLossPct) + "-style";
+    var sentence;
+
+    if (!s.hasEntries) {
+      sentence = esc(strip.label) + " hasn't been weighed yet. Based on the box conditions logged so far, expect it to reach your " +
+        batch.targetLossPct + "% (" + styleTxt + ") target around " + fmtDate(s.estReadyLow) + "–" + fmtDate(s.estReadyHigh) + ".";
+    } else if (s.status === "ready") {
+      sentence = esc(strip.label) + " is ready at " + s.pct.toFixed(1) + "% loss, past your " + batch.targetLossPct + "% (" + styleTxt + ") target.";
+      if (s.fastCaution) sentence += " That's fast for " + s.daysElapsed + " day" + (s.daysElapsed === 1 ? "" : "s") + " in — worth double-checking the weight before calling it done.";
+    } else {
+      var heuristicRate = s.heuristicRateNow;
+      var pace = "";
+      if (s.rate != null && heuristicRate) {
+        var ratio = s.rate / heuristicRate;
+        if (ratio > 1.2) pace = " (faster than these conditions would predict at this stage)";
+        else if (ratio < 0.8) pace = " (slower than these conditions would predict at this stage)";
+      }
+      var rateTxt = s.rate != null ? "~" + s.rate.toFixed(1) + "%/day" : "an unclear rate so far";
+      var statusWord = s.status === "almost" ? "close to target" : "drying steadily";
+      sentence = esc(strip.label) + " is " + statusWord + " at " + s.pct.toFixed(1) + "% loss, currently losing weight at " + rateTxt + pace + ".";
+      sentence += s.estReadyDate
+        ? " At this rate it should hit your " + batch.targetLossPct + "% (" + styleTxt + ") target around " + fmtDate(s.estReadyDate) + "."
+        : " Not enough of a trend yet to project a ready date.";
+    }
+
+    if (s.caseHardeningRisk) {
+      sentence += " ⚠️ Conditions (or measured rate) suggest a real risk of case hardening — the surface drying and sealing before the core has caught up, which can trap moisture inside. Consider lowering temp, easing off the fan, or raising humidity slightly.";
+    }
+    return sentence;
+  }
+
+  function formatCountdown(ms) {
+    if (ms <= 0) return "check due";
+    var totalSec = Math.floor(ms / 1000);
+    var d = Math.floor(totalSec / 86400); totalSec -= d * 86400;
+    var h = Math.floor(totalSec / 3600); totalSec -= h * 3600;
+    var m = Math.floor(totalSec / 60); totalSec -= m * 60;
+    var s = totalSec;
+    if (d > 0) return d + "d " + h + "h " + m + "m left";
+    if (h > 0) return h + "h " + m + "m " + s + "s left";
+    return m + "m " + s + "s left";
+  }
 
   /* ---------------- Data access ---------------- */
   function stripsFor(batchId) {
@@ -302,17 +382,79 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     return { temp: avgTemp, hum: avgHum, usedDefaults: usedDefaults };
   }
 
-  function estimateDryingRange(thicknessMm, avgTempC, avgHumidityPct, dryingSetup, fanSpeed, targetLossPct) {
+  // "Normal" drying profile, calibrated to a researched day-by-day biltong
+  // curve (cumulative % loss vs day, at reference conditions: ~20mm, 22°C,
+  // 45%RH, medium fan in a box) — day 1 ~20-25%, day 2 ~35-40%, day 3 ~45-50%,
+  // day 4 ~50-55%, day 5-6 ~60-70%. Drying is NOT linear: fast early on while
+  // surface moisture evaporates freely (the "constant rate period"), then it
+  // decelerates as moisture has to diffuse out from the core (the "falling
+  // rate period" — see e.g. ScienceDirect's overview of falling-rate drying,
+  // https://www.sciencedirect.com/topics/engineering/falling-rate-period).
+  // Modeled as pct(t) = L*(1 - e^(-k*t)), the standard exponential-approach
+  // ("Newton/Lewis") thin-layer drying model — least-squares fit to the
+  // profile's midpoints gives L≈82.3% (an asymptotic ceiling this approaches
+  // but never quite reaches — "fully dry" in practice sits well below it) and
+  // k≈0.2885/day at the reference conditions above.
+  var DRY_ASYMPTOTE_PCT = 82.3;
+  var DRY_REFERENCE_K = 0.2885;
+
+  function dryingSpeedFactor(thicknessMm, avgTempC, avgHumidityPct, dryingSetup, fanSpeed) {
     var thickness = thicknessMm && thicknessMm > 0 ? thicknessMm : 20;
     var tempFactor = clamp(avgTempC / 22, 0.55, 1.7);
     var humFactor = clamp((85 - avgHumidityPct) / 40, 0.4, 1.7);
     var thickFactor = clamp(20 / thickness, 0.45, 1.9);
     var fanFactor = fanSetupFactor(dryingSetup, fanSpeed);
-    var rate = 6 * tempFactor * humFactor * thickFactor * fanFactor; // %/day
-    var central = targetLossPct / rate;
-    var low = Math.max(2, Math.floor(targetLossPct / (rate * 1.25)));
-    var high = Math.max(low + 1, Math.ceil(targetLossPct / (rate * 0.75)));
-    return { low: low, high: high, central: central, rate: rate };
+    return tempFactor * humFactor * thickFactor * fanFactor;
+  }
+
+  function dryPctAtDay(day, k) { return DRY_ASYMPTOTE_PCT * (1 - Math.exp(-k * Math.max(0, day))); }
+  function dryRateAtDay(day, k) { return DRY_ASYMPTOTE_PCT * k * Math.exp(-k * Math.max(0, day)); } // instantaneous %/day
+  function dryDayForPct(pct, k) {
+    var ratio = clamp(1 - pct / DRY_ASYMPTOTE_PCT, 0.001, 1);
+    return -Math.log(ratio) / k;
+  }
+
+  // Fits k in pct(t) = L*(1 - e^(-k*t)) to real (day, pct) points, with L fixed
+  // at the calibrated asymptote — one free parameter, so even a single real
+  // weigh-in constrains it, and more weigh-ins refine it. Linearizes via
+  // ln(1 - pct/L) = -k*t (exact for this model) and does least-squares
+  // through the origin, since day 0 is always (0, 0%) by definition.
+  function fitDryingK(pts) {
+    var sumXY = 0, sumXX = 0, n = 0;
+    pts.forEach(function(p) {
+      if (p.day <= 0 || p.pct <= 0) return;
+      var ratio = clamp(1 - p.pct / DRY_ASYMPTOTE_PCT, 0.001, 1);
+      sumXY += p.day * Math.log(ratio); sumXX += p.day * p.day; n++;
+    });
+    if (n === 0 || sumXX === 0) return null;
+    var k = -sumXY / sumXX;
+    return (k > 0 && isFinite(k)) ? k : null;
+  }
+
+  function estimateDryingRange(thicknessMm, avgTempC, avgHumidityPct, dryingSetup, fanSpeed, targetLossPct) {
+    var speedFactor = dryingSpeedFactor(thicknessMm, avgTempC, avgHumidityPct, dryingSetup, fanSpeed);
+    var k = DRY_REFERENCE_K * speedFactor;
+    var central = dryDayForPct(targetLossPct, k);
+    var low = Math.max(1, Math.floor(dryDayForPct(targetLossPct, DRY_REFERENCE_K * speedFactor * 1.25)));
+    var high = Math.max(low + 1, Math.ceil(dryDayForPct(targetLossPct, DRY_REFERENCE_K * speedFactor * 0.75)));
+    return { low: low, high: high, central: central, k: k };
+  }
+
+  // Case hardening: the surface dries and seals before moisture from the core
+  // can migrate out, trapping moisture inside — a real food-safety risk (the
+  // sealed-moist interior can spoil even though the outside looks and feels
+  // done), driven by high temp + low humidity + strong airflow drying the
+  // surface faster than the core can keep up. There's no single citable %/day
+  // cutoff in the literature, so this flags the known-risky combination of
+  // conditions, plus a measured rate well above what those same conditions
+  // would predict — both signals, not a certified safety check.
+  // Source: Benchfoods Dehydrators, "Biltong food safety" (citing a 2010 FSA
+  // literature review) — https://benchfoodsdehydrators.co.uk/post/biltong-food-safety
+  function caseHardeningRisk(env, dryingSetup, fanSpeed, measuredRate, heuristicRate) {
+    var hotDryFastAirflow = env.temp >= 28 && env.hum <= 35 &&
+      (fanSpeed === "High" || (dryingSetup && dryingSetup.indexOf("bulb") !== -1));
+    var rateSpike = measuredRate != null && heuristicRate > 0 && measuredRate > heuristicRate * 1.6 && measuredRate > 8;
+    return !!(hotDryFastAirflow || rateSpike);
   }
 
   /* ---------------- Stats ---------------- */
@@ -323,10 +465,14 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     var targetWeightG = Math.round(strip.initialWeightG * (1 - batch.targetLossPct / 100));
 
     if (log.length === 0) {
+      var countdownTarget0 = new Date(strip.addedDate + "T00:00:00").getTime() + estRange.central * 86400000;
+      var heuristicRateNow0 = dryRateAtDay(0, estRange.k);
       return {
         hasEntries: false, pct: 0, daysElapsed: 0, log: log, status: "new",
         rate: null, daysRemaining: null, targetWeightG: targetWeightG,
-        estRange: estRange, estReadyLow: addDaysISO(strip.addedDate, estRange.low), estReadyHigh: addDaysISO(strip.addedDate, estRange.high)
+        estRange: estRange, estReadyLow: addDaysISO(strip.addedDate, estRange.low), estReadyHigh: addDaysISO(strip.addedDate, estRange.high),
+        countdownTarget: countdownTarget0, kEff: null, heuristicRateNow: heuristicRateNow0,
+        caseHardeningRisk: caseHardeningRisk(env, batch.dryingSetup, batch.fanSpeed, null, heuristicRateNow0)
       };
     }
     var last = log[log.length - 1];
@@ -334,8 +480,18 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     pct = clamp(pct, -50, 99);
     var daysElapsed = daysBetween(strip.addedDate, last.date);
 
+    // Fit this strip's own decay rate from its real weigh-ins (strip-relative
+    // days, so day 0 = its own added date) — drying is decelerating, so this
+    // extrapolates along the same curve shape instead of a flat/linear rate.
+    var fitPts = log.map(function(w) {
+      return { day: daysBetween(strip.addedDate, w.date), pct: clamp(((strip.initialWeightG - w.weightG) / strip.initialWeightG) * 100, -50, 99) };
+    });
+    var kEff = fitDryingK(fitPts);
+
     var rate = null;
-    if (log.length >= 2) {
+    if (kEff) {
+      rate = dryRateAtDay(daysElapsed, kEff);
+    } else if (log.length >= 2) {
       var prev = log[log.length - 2];
       var prevPct = ((strip.initialWeightG - prev.weightG) / strip.initialWeightG) * 100;
       var dDays = daysBetween(prev.date, last.date);
@@ -349,18 +505,32 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     else if (pct >= target - 5) status = "almost";
     else status = "drying";
 
-    var daysRemaining = null, estReadyDate = null;
-    if (status !== "ready" && rate && rate > 0) {
-      daysRemaining = Math.ceil((target - pct) / rate);
-      estReadyDate = addDaysISO(last.date, daysRemaining);
+    var daysRemaining = null, estReadyDate = null, countdownTarget = null;
+    if (status !== "ready") {
+      if (kEff) {
+        var dayForTarget = dryDayForPct(target, kEff);
+        var exactRemaining = dayForTarget - daysElapsed;
+        if (exactRemaining > 0) {
+          daysRemaining = Math.ceil(exactRemaining);
+          estReadyDate = addDaysISO(last.date, daysRemaining);
+          countdownTarget = new Date(strip.addedDate + "T00:00:00").getTime() + dayForTarget * 86400000;
+        }
+      } else if (rate && rate > 0) {
+        daysRemaining = Math.ceil((target - pct) / rate);
+        estReadyDate = addDaysISO(last.date, daysRemaining);
+        countdownTarget = new Date(last.date + "T00:00:00").getTime() + ((target - pct) / rate) * 86400000;
+      }
     }
 
     var fastCaution = (status === "ready" && daysElapsed < 4);
+    var heuristicRateNow = dryRateAtDay(daysElapsed, estRange.k);
 
     return {
       hasEntries: true, pct: pct, daysElapsed: daysElapsed, log: log, status: status,
       rate: rate, daysRemaining: daysRemaining, estReadyDate: estReadyDate, fastCaution: fastCaution,
-      lastEntry: last, targetWeightG: targetWeightG, estRange: estRange
+      lastEntry: last, targetWeightG: targetWeightG, estRange: estRange, countdownTarget: countdownTarget, kEff: kEff,
+      heuristicRateNow: heuristicRateNow,
+      caseHardeningRisk: caseHardeningRisk(env, batch.dryingSetup, batch.fanSpeed, rate, heuristicRateNow)
     };
   }
 
@@ -924,7 +1094,9 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
           '</div>' +
           '<div class="field-row">' +
             '<div class="field"><label>Start date</label><input type="date" name="startDate" value="' + (isEdit ? batch.startDate : today) + '" required></div>' +
-            '<div class="field"><label>Target weight loss (%)</label><input type="number" name="targetLossPct" min="15" max="70" value="' + (isEdit ? batch.targetLossPct : 40) + '" required></div>' +
+            '<div class="field"><label>Target weight loss (%)</label><input type="number" name="targetLossPct" min="15" max="75" value="' + (isEdit ? batch.targetLossPct : 50) + '" required>' +
+              '<div class="hint">Rough guide: ~50% wet, ~60% medium, ~70% dry. Personal preference, not a hard rule.</div>' +
+            '</div>' +
           '</div>' +
           '<div class="field"><label>Drying setup</label>' +
             '<select name="dryingSetup">' + DRYING_SETUPS.map(function(s){ var sel = isEdit ? (batch.dryingSetup === s) : (s === "Biltong box (fan only)"); return '<option ' + (sel ? "selected" : "") + '>' + s + '</option>'; }).join("") + '</select>' +
@@ -1050,14 +1222,17 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       } else {
         estTxt = "—";
       }
+      var countdownTxt = (s.status !== "ready" && s.countdownTarget != null)
+        ? '<div class="est-note" data-countdown="' + s.countdownTarget + '">' + esc(formatCountdown(s.countdownTarget - Date.now())) + '</div>'
+        : '';
       return '' +
       '<tr>' +
         '<td><span class="strip-name-cell"><span class="strip-dot" style="background:' + color + '"></span>' + esc(strip.label) + '</span></td>' +
         '<td>' + strip.initialWeightG + 'g → ' + currentG + 'g</td>' +
         '<td>' + lossTxt + '</td>' +
         '<td>' + s.targetWeightG + 'g</td>' +
-        '<td><span class="status-pill status-' + sm.cls + '">' + sm.emoji + ' ' + sm.label + '</span></td>' +
-        '<td class="est">' + estTxt + '</td>' +
+        '<td><span class="status-pill status-' + sm.cls + '">' + sm.emoji + ' ' + sm.label + '</span>' + (s.caseHardeningRisk ? ' <span title="Possible case hardening risk — see insight below">⚠️</span>' : '') + '</td>' +
+        '<td class="est">' + estTxt + countdownTxt + '</td>' +
         '<td class="row-actions">' +
           '<button class="btn btn-ghost btn-sm" data-edit-strip="' + strip.id + '" title="Edit">✎</button>' +
           '<button class="btn btn-ghost btn-sm" data-del-strip="' + strip.id + '" title="Delete">✕</button>' +
@@ -1071,7 +1246,19 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
         '<div class="est-note" style="margin-top:8px;">Est. ready dates are a range (rough heuristic from box temp/humidity/thickness) until a strip has at least one weigh-in, then it switches to a single date from its own measured drying rate.</div>' +
       '</div>') : '<div class="card"><div class="ing-empty">No strips yet — click "+ Add strip" below.</div></div>';
 
+    var insightRows = sum.rows.map(function(r) {
+      return '<div class="insight-row"><span class="strip-dot" style="background:' + seriesColor(r.idx) + ';margin-top:5px;"></span><span>' + generateInsight(r.strip, b, r.stats) + '</span></div>';
+    }).join("");
+    var insights = sum.total ? ('<div class="section-title">Drying insight</div><div class="card insight-list">' + insightRows + '</div>') : '';
+
     var chart = sum.total ? renderChart(b, sum) : "";
+    var tempChart = renderEnvChart(b, "temp");
+    var humChart = renderEnvChart(b, "hum");
+    var chartControls = sum.total ? ('' +
+      '<div class="chart-controls">' +
+        '<label><input type="checkbox" id="toggleFitPerStrip"' + (chartShowPerStripFit ? ' checked' : '') + '> Modeled trend, per strip</label>' +
+        '<label><input type="checkbox" id="toggleFitCombined"' + (chartShowCombinedFit ? ' checked' : '') + '> Modeled trend, combined (all strips)</label>' +
+      '</div>') : '';
 
     var ingredientsList = (b.ingredients && b.ingredients.filter(function(i){ return i.name; }).length)
       ? '<ul class="ing-list">' + b.ingredients.filter(function(i){ return i.name; }).map(function(i){ return '<li><span>' + esc(i.name) + '</span><span class="amt">' + esc(i.amount || '') + '</span></li>'; }).join("") + '</ul>'
@@ -1132,7 +1319,13 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     stripsTable +
     stripModal("add", b, null) +
 
-    (chart ? '<div class="section-title">Weight loss over time</div><div class="card chart-card">' + chart + '</div>' : '') +
+    insights +
+
+    (chart ? '<div class="section-title">Weight loss over time</div>' + chartControls + '<div class="card chart-card">' + chart + '</div>' : '') +
+
+    (tempChart || humChart ? '<div class="section-title">Environment over time</div>' : '') +
+    (tempChart ? '<div class="card chart-card" style="margin-bottom:12px;">' + tempChart + '</div>' : '') +
+    (humChart ? '<div class="card chart-card">' + humChart + '</div>' : '') +
 
     '<div class="section-title">Marinade &amp; spice mix</div>' +
     '<div class="card">' + ingredientsList + (b.methodNotes ? '<div class="hint" style="margin-top:10px;">' + esc(b.methodNotes) + '</div>' : '') + '</div>' +
@@ -1177,6 +1370,8 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
 
     var maxDay = 1, maxPct = 20;
     sum.rows.forEach(function(r) {
+      var d0 = daysBetween(b.startDate, r.strip.addedDate);
+      if (d0 > maxDay) maxDay = d0;
       r.stats.log.forEach(function(w) {
         var d = daysBetween(b.startDate, w.date);
         var pct = ((r.strip.initialWeightG - w.weightG) / r.strip.initialWeightG) * 100;
@@ -1200,19 +1395,40 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     var targetLine = '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + targetY + '" y2="' + targetY + '" stroke="var(--text-primary)" stroke-opacity="0.45" stroke-width="1.5" stroke-dasharray="4 4"></line>' +
       '<text x="' + (W - padR) + '" y="' + (targetY - 5) + '" text-anchor="end" font-size="10.5" fill="var(--text-secondary)">Target ' + b.targetLossPct + '%</text>';
 
-    var linesSvg = "", markersSvg = "", labelsSvg = "";
+    function curvePath(startDay, k, dayOffset) {
+      var steps = 24, d = "";
+      for (var i = 0; i <= steps; i++) {
+        var dBatch = startDay + (maxDay - startDay) * (i / steps);
+        var pctAtD = dryPctAtDay(dBatch - dayOffset, k);
+        d += (i === 0 ? "M" : "L") + x(dBatch).toFixed(1) + " " + y(pctAtD).toFixed(1) + " ";
+      }
+      return d.trim();
+    }
+
+    var linesSvg = "", fitSvg = "", markersSvg = "", labelsSvg = "", anyFit = false, allPts = [];
     sum.rows.forEach(function(r) {
       var color = seriesColor(r.idx);
-      var pts = r.stats.log.map(function(w) {
+      var d0 = daysBetween(b.startDate, r.strip.addedDate);
+      var pts = [{ day: d0, pct: 0, w: { date: r.strip.addedDate, weightG: r.strip.initialWeightG }, isStart: true }];
+      r.stats.log.forEach(function(w) {
         var d = daysBetween(b.startDate, w.date);
         var pct = ((r.strip.initialWeightG - w.weightG) / r.strip.initialWeightG) * 100;
-        return { day: d, pct: pct, w: w };
+        pts.push({ day: d, pct: pct, w: w });
       });
-      if (pts.length === 0) return;
+      allPts = allPts.concat(pts);
       var pathD = pts.map(function(p, i) { return (i === 0 ? "M" : "L") + x(p.day).toFixed(1) + " " + y(p.pct).toFixed(1); }).join(" ");
       linesSvg += '<path d="' + pathD + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>';
+      // Modeled trend — the same decelerating drying curve driving the "est. ready"
+      // date, not a straight line (drying slows over time, so a straight-line fit
+      // would predict finishing too soon). Needs a couple of real weigh-ins.
+      if (chartShowPerStripFit && r.stats.log.length >= 2 && r.stats.kEff) {
+        anyFit = true;
+        fitSvg += '<path d="' + curvePath(d0, r.stats.kEff, d0) + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="2 4"></path>';
+      }
       pts.forEach(function(p) {
-        var title = esc(r.strip.label) + " — " + fmtDate(p.w.date) + " (day " + p.day + ") — " + p.w.weightG + "g, " + p.pct.toFixed(1) + "% loss";
+        var title = p.isStart
+          ? esc(r.strip.label) + " — " + fmtDate(p.w.date) + " (day " + p.day + ") — starting weight " + p.w.weightG + "g"
+          : esc(r.strip.label) + " — " + fmtDate(p.w.date) + " (day " + p.day + ") — " + p.w.weightG + "g, " + p.pct.toFixed(1) + "% loss";
         markersSvg += '<circle cx="' + x(p.day).toFixed(1) + '" cy="' + y(p.pct).toFixed(1) + '" r="4" fill="' + color + '" stroke="var(--surface-1)" stroke-width="2" class="pt" data-tip="' + esc(title) + '"><title>' + title + '</title></circle>';
       });
       if (directLabel) {
@@ -1220,6 +1436,15 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
         labelsSvg += '<text x="' + (x(lastPt.day) + 7) + '" y="' + (y(lastPt.pct) + 3) + '" font-size="10.5" fill="' + color + '" font-weight="600">' + esc(r.strip.label) + '</text>';
       }
     });
+
+    var anyCombinedFit = false;
+    if (chartShowCombinedFit) {
+      var combinedK = fitDryingK(allPts);
+      if (combinedK) {
+        anyCombinedFit = true;
+        fitSvg += '<path d="' + curvePath(0, combinedK, 0) + '" fill="none" stroke="var(--text-primary)" stroke-width="2" stroke-opacity="0.55" stroke-dasharray="6 3"></path>';
+      }
+    }
 
     var xAxisLabels = "", xTickCount = Math.min(maxDay, 6);
     for (var t = 0; t <= xTickCount; t++) {
@@ -1230,11 +1455,88 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
 
     var legend = '<div class="legend">' + sum.rows.map(function(r) {
       return '<span class="item"><span class="swatch" style="background:' + seriesColor(r.idx) + '"></span>' + esc(r.strip.label) + '</span>';
-    }).join("") + '<span class="item"><span class="swatch dashed"></span>Target</span></div>';
+    }).join("") + '<span class="item"><span class="swatch dashed"></span>Target</span>' +
+      (anyFit ? '<span class="item"><span class="swatch dashed"></span>Modeled trend</span>' : '') +
+      (anyCombinedFit ? '<span class="item"><span class="swatch dashed" style="background:none;border-top:2px dashed var(--text-primary);height:0;"></span>Combined modeled trend</span>' : '') + '</div>';
 
     return '' +
     '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" role="img" aria-label="Weight loss percentage over time by strip">' +
-      gridLines + baseline + targetLine + linesSvg + markersSvg + labelsSvg + xAxisLabels +
+      gridLines + baseline + targetLine + fitSvg + linesSvg + markersSvg + labelsSvg + xAxisLabels +
+    '</svg>' + legend;
+  }
+
+  // Temp (°C) and humidity (%RH) are different scales, so this renders one or the
+  // other as its own single-axis chart — never both on one dual-axis plot, which
+  // is misleading (the #1 charting mistake: two y-scales invites false correlation).
+  function renderEnvChart(b, kind) {
+    var boxField = kind === "temp" ? "boxTempC" : "boxHumidityPct";
+    var roomField = kind === "temp" ? "roomTempC" : "roomHumidityPct";
+    var unit = kind === "temp" ? "°C" : "%";
+    var label = kind === "temp" ? "Temperature" : "Humidity";
+
+    var logs = dayLogsFor(b.id);
+    var boxPts = [], roomPts = [];
+    logs.forEach(function(l) {
+      var d = daysBetween(b.startDate, l.date);
+      if (l[boxField] !== "" && l[boxField] != null) boxPts.push({ day: d, val: Number(l[boxField]), date: l.date });
+      if (l[roomField] !== "" && l[roomField] != null) roomPts.push({ day: d, val: Number(l[roomField]), date: l.date });
+    });
+    if (boxPts.length === 0 && roomPts.length === 0) return "";
+
+    var W = 660, H = 200, padL = 42, padR = 20, padT = 16, padB = 30;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+
+    var allPts = boxPts.concat(roomPts);
+    var maxDay = 1, minVal = Infinity, maxVal = -Infinity;
+    allPts.forEach(function(p) {
+      if (p.day > maxDay) maxDay = p.day;
+      if (p.val < minVal) minVal = p.val;
+      if (p.val > maxVal) maxVal = p.val;
+    });
+    if (minVal === maxVal) { minVal -= 1; maxVal += 1; }
+    var vPad = (maxVal - minVal) * 0.15 || 1;
+    minVal -= vPad; maxVal += vPad;
+
+    function x(day) { return padL + (day / maxDay) * plotW; }
+    function y(val) { return padT + plotH - ((val - minVal) / (maxVal - minVal)) * plotH; }
+
+    var gridLines = "", gridStep = (maxVal - minVal) / 4;
+    for (var g = 0; g <= 4; g++) {
+      var gval = minVal + g * gridStep, gy = y(gval);
+      gridLines += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + gy + '" y2="' + gy + '" stroke="var(--gridline)" stroke-width="1"></line>';
+      gridLines += '<text x="' + (padL - 8) + '" y="' + (gy + 4) + '" text-anchor="end" font-size="10.5" fill="var(--muted)">' + Math.round(gval) + unit + '</text>';
+    }
+    var baseline = '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + (padT + plotH) + '" y2="' + (padT + plotH) + '" stroke="var(--baseline)" stroke-width="1.5"></line>';
+
+    function seriesSvg(pts, color, seriesLabel) {
+      if (!pts.length) return "";
+      var sorted = pts.slice().sort(function(a, c) { return a.day - c.day; });
+      var pathD = sorted.map(function(p, i) { return (i === 0 ? "M" : "L") + x(p.day).toFixed(1) + " " + y(p.val).toFixed(1); }).join(" ");
+      var svg = '<path d="' + pathD + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>';
+      sorted.forEach(function(p) {
+        var title = seriesLabel + " — " + fmtDate(p.date) + " (day " + p.day + ") — " + p.val + unit;
+        svg += '<circle cx="' + x(p.day).toFixed(1) + '" cy="' + y(p.val).toFixed(1) + '" r="4" fill="' + color + '" stroke="var(--surface-1)" stroke-width="2" class="pt" data-tip="' + esc(title) + '"><title>' + esc(title) + '</title></circle>';
+      });
+      return svg;
+    }
+
+    var boxColor = "var(--series-1)", roomColor = "var(--series-2)";
+    var seriesSvgStr = seriesSvg(boxPts, boxColor, "Box") + seriesSvg(roomPts, roomColor, "Room");
+
+    var xAxisLabels = "", xTickCount = Math.min(maxDay, 6);
+    for (var t = 0; t <= xTickCount; t++) {
+      var dd = Math.round((t / xTickCount) * maxDay);
+      xAxisLabels += '<text x="' + x(dd) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10.5" fill="var(--muted)">Day ' + dd + '</text>';
+    }
+
+    var legendItems = [];
+    if (boxPts.length) legendItems.push('<span class="item"><span class="swatch" style="background:' + boxColor + '"></span>Box</span>');
+    if (roomPts.length) legendItems.push('<span class="item"><span class="swatch" style="background:' + roomColor + '"></span>Room</span>');
+    var legend = '<div class="legend">' + legendItems.join("") + '</div>';
+
+    return '' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" role="img" aria-label="' + label + ' over time">' +
+      gridLines + baseline + seriesSvgStr + xAxisLabels +
     '</svg>' + legend;
   }
 
@@ -1439,6 +1741,11 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       el.addEventListener("click", function() { deleteStripWeight(el.getAttribute("data-del-stripweight")); render(); });
     });
 
+    var toggleFitPerStrip = document.getElementById("toggleFitPerStrip");
+    if (toggleFitPerStrip) toggleFitPerStrip.addEventListener("change", function() { chartShowPerStripFit = toggleFitPerStrip.checked; render(); });
+    var toggleFitCombined = document.getElementById("toggleFitCombined");
+    if (toggleFitCombined) toggleFitCombined.addEventListener("change", function() { chartShowCombinedFit = toggleFitCombined.checked; render(); });
+
     // hover tooltips for chart points
     var tip = document.getElementById("tooltip");
     document.querySelectorAll(".pt").forEach(function(el) {
@@ -1568,6 +1875,15 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     var rmStripRow = e.target.closest("[data-remove-strip]");
     if (rmStripRow) { var stripRow = rmStripRow.closest(".row-item"); if (stripRow) stripRow.remove(); return; }
   });
+
+  // Live countdown: ticks any [data-countdown] element currently in the DOM
+  // (strip "est. ready" cells) without re-rendering the whole app each second.
+  setInterval(function() {
+    var now = Date.now();
+    document.querySelectorAll("[data-countdown]").forEach(function(el) {
+      el.textContent = formatCountdown(Number(el.getAttribute("data-countdown")) - now);
+    });
+  }, 1000);
 
   render();
   initFirebase().catch(function(err) { console.error(err); });
