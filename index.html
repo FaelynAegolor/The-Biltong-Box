@@ -113,6 +113,8 @@
   .detail-head h2 { margin: 0 0 4px; font-size: 20px; }
   .detail-head .meta { color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
   .detail-actions { display: flex; gap: 6px; }
+  .rating-row { margin-top: 6px; display: flex; align-items: center; }
+  .star-btn { background: none; border: none; padding: 0 1px; font-size: 17px; line-height: 1; cursor: pointer; }
 
   .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 4px; }
   .summary-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 6px 11px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary); }
@@ -302,6 +304,11 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     if (!s.hasEntries) {
       sentence = esc(strip.label) + " hasn't been weighed yet. Based on the box conditions logged so far, expect it to reach your " +
         batch.targetLossPct + "% (" + styleTxt + ") target around " + fmtDate(s.estReadyLow) + "–" + fmtDate(s.estReadyHigh) + ".";
+      var cal = s.estRange.calibration;
+      if (cal && cal.speedBias) {
+        sentence += " (Adjusted from " + cal.sampleSize + " of your own rated strips — your setup runs about " +
+          Math.round(Math.abs(cal.speedBias - 1) * 100) + "% " + (cal.speedBias > 1 ? "faster" : "slower") + " than the generic estimate.)";
+      }
     } else if (s.status === "ready") {
       sentence = esc(strip.label) + " is ready at " + s.pct.toFixed(1) + "% loss, past your " + batch.targetLossPct + "% (" + styleTxt + ") target.";
       if (s.fastCaution) sentence += " That's fast for " + s.daysElapsed + " day" + (s.daysElapsed === 1 ? "" : "s") + " in — worth double-checking the weight before calling it done.";
@@ -431,13 +438,55 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     return (k > 0 && isFinite(k)) ? k : null;
   }
 
+  // Learns from your own rated history: compares each rated strip's own fitted
+  // drying rate against what the generic heuristic predicted for the same
+  // conditions, and averages the ratio into a personal speed-correction factor
+  // — applied to future pre-weigh-in estimates once there's enough history to
+  // trust it. Also averages the actual weight loss of strips you rated "just
+  // right" into a suggested target %. Both stay invisible/inactive until
+  // there's a real sample, and both are surfaced in the UI, never silent.
+  function personalCalibration() {
+    var ratios = [], idealTargets = [];
+    state.strips.forEach(function(strip) {
+      if (!strip.texture) return; // only count strips you actually followed through and rated
+      var weights = stripWeightsFor(strip.id);
+      if (weights.length < 2) return; // need a real fitted rate, not a guess
+      var batch = state.batches.find(function(bb) { return bb.id === strip.batchId; });
+      if (!batch) return;
+      var fitPts = weights.map(function(w) {
+        return { day: daysBetween(strip.addedDate, w.date), pct: clamp(((strip.initialWeightG - w.weightG) / strip.initialWeightG) * 100, -50, 99) };
+      });
+      var kActual = fitDryingK(fitPts);
+      if (!kActual) return;
+      var env = avgEnvForBatch(batch.id);
+      var speedFactor = dryingSpeedFactor(strip.thicknessMm, env.temp, env.hum, batch.dryingSetup, batch.fanSpeed);
+      var kHeuristic = DRY_REFERENCE_K * speedFactor;
+      if (kHeuristic > 0) ratios.push(kActual / kHeuristic);
+      if (strip.texture === "perfect") {
+        var lastW = weights[weights.length - 1];
+        idealTargets.push(((strip.initialWeightG - lastW.weightG) / strip.initialWeightG) * 100);
+      }
+    });
+    var speedBias = null;
+    if (ratios.length >= 3) {
+      speedBias = clamp(ratios.reduce(function(a, x) { return a + x; }, 0) / ratios.length, 0.5, 2.0);
+    }
+    var idealTargetPct = null;
+    if (idealTargets.length >= 2) {
+      idealTargetPct = idealTargets.reduce(function(a, x) { return a + x; }, 0) / idealTargets.length;
+    }
+    return { speedBias: speedBias, sampleSize: ratios.length, idealTargetPct: idealTargetPct, idealTargetSampleSize: idealTargets.length };
+  }
+
   function estimateDryingRange(thicknessMm, avgTempC, avgHumidityPct, dryingSetup, fanSpeed, targetLossPct) {
     var speedFactor = dryingSpeedFactor(thicknessMm, avgTempC, avgHumidityPct, dryingSetup, fanSpeed);
+    var cal = personalCalibration();
+    if (cal.speedBias) speedFactor *= cal.speedBias;
     var k = DRY_REFERENCE_K * speedFactor;
     var central = dryDayForPct(targetLossPct, k);
     var low = Math.max(1, Math.floor(dryDayForPct(targetLossPct, DRY_REFERENCE_K * speedFactor * 1.25)));
     var high = Math.max(low + 1, Math.ceil(dryDayForPct(targetLossPct, DRY_REFERENCE_K * speedFactor * 0.75)));
-    return { low: low, high: high, central: central, k: k };
+    return { low: low, high: high, central: central, k: k, calibration: cal };
   }
 
   // Case hardening: the surface dries and seals before moisture from the core
@@ -448,12 +497,15 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
   // cutoff in the literature, so this flags the known-risky combination of
   // conditions, plus a measured rate well above what those same conditions
   // would predict — both signals, not a certified safety check.
+  // Thresholds are deliberately conservative (only genuinely extreme
+  // combinations trigger) so a normal box+bulb+fan setup doesn't get flagged
+  // by default — the temp cutoff sits just under the ~35°C + high air
+  // movement example the source itself uses as a risk case.
   // Source: Benchfoods Dehydrators, "Biltong food safety" (citing a 2010 FSA
   // literature review) — https://benchfoodsdehydrators.co.uk/post/biltong-food-safety
-  function caseHardeningRisk(env, dryingSetup, fanSpeed, measuredRate, heuristicRate) {
-    var hotDryFastAirflow = env.temp >= 28 && env.hum <= 35 &&
-      (fanSpeed === "High" || (dryingSetup && dryingSetup.indexOf("bulb") !== -1));
-    var rateSpike = measuredRate != null && heuristicRate > 0 && measuredRate > heuristicRate * 1.6 && measuredRate > 8;
+  function caseHardeningRisk(env, fanSpeed, measuredRate, heuristicRate) {
+    var hotDryFastAirflow = env.temp >= 33 && env.hum <= 30 && fanSpeed === "High";
+    var rateSpike = measuredRate != null && heuristicRate > 0 && measuredRate > heuristicRate * 2.0 && measuredRate > 12;
     return !!(hotDryFastAirflow || rateSpike);
   }
 
@@ -472,7 +524,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
         rate: null, daysRemaining: null, targetWeightG: targetWeightG,
         estRange: estRange, estReadyLow: addDaysISO(strip.addedDate, estRange.low), estReadyHigh: addDaysISO(strip.addedDate, estRange.high),
         countdownTarget: countdownTarget0, kEff: null, heuristicRateNow: heuristicRateNow0,
-        caseHardeningRisk: caseHardeningRisk(env, batch.dryingSetup, batch.fanSpeed, null, heuristicRateNow0)
+        caseHardeningRisk: caseHardeningRisk(env, batch.fanSpeed, null, heuristicRateNow0)
       };
     }
     var last = log[log.length - 1];
@@ -530,7 +582,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       rate: rate, daysRemaining: daysRemaining, estReadyDate: estReadyDate, fastCaution: fastCaution,
       lastEntry: last, targetWeightG: targetWeightG, estRange: estRange, countdownTarget: countdownTarget, kEff: kEff,
       heuristicRateNow: heuristicRateNow,
-      caseHardeningRisk: caseHardeningRisk(env, batch.dryingSetup, batch.fanSpeed, rate, heuristicRateNow)
+      caseHardeningRisk: caseHardeningRisk(env, batch.fanSpeed, rate, heuristicRateNow)
     };
   }
 
@@ -1061,6 +1113,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
   function batchModal(mode, batch) {
     var isEdit = mode === "edit" && batch;
     var today = todayISO();
+    var cal = personalCalibration();
     var ingredients = isEdit ? batch.ingredients : DEFAULT_INGREDIENTS;
     var ingRows = (ingredients && ingredients.length ? ingredients : [{name:"",amount:""}]).map(function(i){ return ingredientRowHTML(i.name, i.amount); }).join("");
     var overlayId = isEdit ? "editBatchOverlay" : "newBatchOverlay";
@@ -1094,8 +1147,10 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
           '</div>' +
           '<div class="field-row">' +
             '<div class="field"><label>Start date</label><input type="date" name="startDate" value="' + (isEdit ? batch.startDate : today) + '" required></div>' +
-            '<div class="field"><label>Target weight loss (%)</label><input type="number" name="targetLossPct" min="15" max="75" value="' + (isEdit ? batch.targetLossPct : 50) + '" required>' +
-              '<div class="hint">Rough guide: ~50% wet, ~60% medium, ~70% dry. Personal preference, not a hard rule.</div>' +
+            '<div class="field"><label>Target weight loss (%)</label><input type="number" name="targetLossPct" min="15" max="75" value="' + (isEdit ? batch.targetLossPct : (cal.idealTargetPct ? Math.round(cal.idealTargetPct) : 50)) + '" required>' +
+              '<div class="hint">Rough guide: ~50% wet, ~60% medium, ~70% dry. Personal preference, not a hard rule.' +
+              (cal.idealTargetPct ? ' Your own "just right"-rated strips averaged ~' + Math.round(cal.idealTargetPct) + '% loss (' + cal.idealTargetSampleSize + ' rated)' + (isEdit ? '.' : ' — used as the default above.') : '') +
+              '</div>' +
             '</div>' +
           '</div>' +
           '<div class="field"><label>Drying setup</label>' +
@@ -1138,6 +1193,17 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
             '<div class="field"><label>Thickness (mm)</label><input type="number" name="thicknessMm" min="1" step="1" value="' + (isEdit && strip.thicknessMm ? strip.thicknessMm : "") + '"></div>' +
           '</div>' +
           '<div class="field"><label>Added date</label><input type="date" name="addedDate" value="' + (isEdit ? strip.addedDate : todayISO()) + '" required></div>' +
+          (isEdit ? (
+            '<div class="field"><label>How did it turn out?</label>' +
+              '<select name="texture">' +
+                '<option value="">Not rated yet</option>' +
+                '<option value="wet"' + (strip.texture === "wet" ? " selected" : "") + '>Too wet</option>' +
+                '<option value="perfect"' + (strip.texture === "perfect" ? " selected" : "") + '>Just right</option>' +
+                '<option value="dry"' + (strip.texture === "dry" ? " selected" : "") + '>Too dry</option>' +
+              '</select>' +
+              '<div class="hint">Once you\'ve tried it. This helps future predictions learn your taste and your setup\'s real drying speed.</div>' +
+            '</div>'
+          ) : "") +
           '<div class="form-actions">' +
             '<button type="button" class="btn btn-ghost" id="btnCancel' + (isEdit ? "EditStrip" : "AddStrip") + '">Cancel</button>' +
             '<button type="submit" class="btn btn-primary">' + (isEdit ? "Save changes" : "Add strip") + '</button>' +
@@ -1225,9 +1291,12 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       var countdownTxt = (s.status !== "ready" && s.countdownTarget != null)
         ? '<div class="est-note" data-countdown="' + s.countdownTarget + '">' + esc(formatCountdown(s.countdownTarget - Date.now())) + '</div>'
         : '';
+      var textureBadge = strip.texture
+        ? ' <span title="Rated: ' + (strip.texture === "wet" ? "too wet" : strip.texture === "dry" ? "too dry" : "just right") + '">' + (strip.texture === "wet" ? "💧" : strip.texture === "dry" ? "🏜️" : "👍") + '</span>'
+        : '';
       return '' +
       '<tr>' +
-        '<td><span class="strip-name-cell"><span class="strip-dot" style="background:' + color + '"></span>' + esc(strip.label) + '</span></td>' +
+        '<td><span class="strip-name-cell"><span class="strip-dot" style="background:' + color + '"></span>' + esc(strip.label) + textureBadge + '</span></td>' +
         '<td>' + strip.initialWeightG + 'g → ' + currentG + 'g</td>' +
         '<td>' + lossTxt + '</td>' +
         '<td>' + s.targetWeightG + 'g</td>' +
@@ -1305,11 +1374,19 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     });
     weightLogRows.sort(function(a,b2){ return b2.date.localeCompare(a.date) || b2.createdAt - a.createdAt; });
 
+    var ratingStars = '<div class="rating-row">' +
+      [1,2,3,4,5].map(function(n) {
+        var filled = b.rating && n <= b.rating;
+        return '<button type="button" class="star-btn" data-rate-batch="' + n + '" title="Rate ' + n + ' star' + (n === 1 ? "" : "s") + '" style="color:' + (filled ? "var(--accent)" : "var(--border)") + ';">★</button>';
+      }).join("") +
+      (b.rating ? '<button type="button" class="btn btn-ghost btn-sm" data-rate-batch="0" style="margin-left:4px;">clear</button><span class="hint" style="margin-left:2px;">Overall rating</span>' : '<span class="hint" style="margin-left:4px;">Rate this batch once you\'ve tried it</span>') +
+    '</div>';
+
     return '' +
     '<div class="backrow"><button class="btn btn-ghost" id="btnBack">← All batches</button></div>' +
     '<div class="card">' +
       '<div class="detail-head">' +
-        '<div><h2>' + esc(b.name) + '</h2><div class="meta">' + esc(metaBits) + '<br>Started ' + fmtDate(b.startDate) + '</div></div>' +
+        '<div><h2>' + esc(b.name) + '</h2><div class="meta">' + esc(metaBits) + '<br>Started ' + fmtDate(b.startDate) + '</div>' + ratingStars + '</div>' +
         '<div class="detail-actions"><button class="btn btn-sm" id="btnEditBatch">Edit details</button><button class="btn btn-sm btn-danger" id="btnDeleteBatch">Delete batch</button></div>' +
       '</div>' +
       summaryChips +
@@ -1379,7 +1456,9 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
         if (pct > maxPct) maxPct = pct;
       });
     });
-    maxPct = Math.ceil(Math.max(maxPct * 1.15, b.targetLossPct * 1.15, 20) / 10) * 10;
+    maxDay = Math.max(maxDay, 7); // always show at least a week, so the ideal profile reads in full
+    var idealAtMaxDay = dryPctAtDay(maxDay, DRY_REFERENCE_K);
+    maxPct = Math.ceil(Math.max(maxPct * 1.15, b.targetLossPct * 1.15, idealAtMaxDay * 1.05, 20) / 10) * 10;
 
     function x(day) { return padL + (day / maxDay) * plotW; }
     function y(pct) { return padT + plotH - (clamp(pct, 0, maxPct) / maxPct) * plotH; }
@@ -1404,6 +1483,12 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       }
       return d.trim();
     }
+
+    // Ideal/typical drying profile — the same calibrated curve (reference
+    // conditions: ~20mm, 22°C, 45%RH, medium fan) that the per-strip and
+    // combined trend lines are fit variants of, so they're always visually
+    // comparable against this fixed baseline.
+    var idealLine = '<path d="' + curvePath(0, DRY_REFERENCE_K, 0) + '" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="1 3" stroke-linecap="round"></path>';
 
     var linesSvg = "", fitSvg = "", markersSvg = "", labelsSvg = "", anyFit = false, allPts = [];
     sum.rows.forEach(function(r) {
@@ -1456,12 +1541,13 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
     var legend = '<div class="legend">' + sum.rows.map(function(r) {
       return '<span class="item"><span class="swatch" style="background:' + seriesColor(r.idx) + '"></span>' + esc(r.strip.label) + '</span>';
     }).join("") + '<span class="item"><span class="swatch dashed"></span>Target</span>' +
+      '<span class="item"><span class="swatch dashed" style="background:none;border-top:1.5px dotted var(--muted);height:0;"></span>Ideal profile</span>' +
       (anyFit ? '<span class="item"><span class="swatch dashed"></span>Modeled trend</span>' : '') +
       (anyCombinedFit ? '<span class="item"><span class="swatch dashed" style="background:none;border-top:2px dashed var(--text-primary);height:0;"></span>Combined modeled trend</span>' : '') + '</div>';
 
     return '' +
     '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;" role="img" aria-label="Weight loss percentage over time by strip">' +
-      gridLines + baseline + targetLine + fitSvg + linesSvg + markersSvg + labelsSvg + xAxisLabels +
+      gridLines + baseline + targetLine + idealLine + fitSvg + linesSvg + markersSvg + labelsSvg + xAxisLabels +
     '</svg>' + legend;
   }
 
@@ -1589,12 +1675,13 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
         fanSpeed: fd.get("fanSpeed") || "",
         ingredients: parseIngredientsFromForm(fd),
         methodNotes: fd.get("methodNotes").trim(),
+        rating: null,
         createdAt: Date.now()
       };
       addBatch(data);
       parseStripRowsFromForm(fd).forEach(function(row) {
         if (!row.weightG) return;
-        addStrip({ id: uid(), batchId: batchId, label: row.label, initialWeightG: row.weightG, thicknessMm: row.thicknessMm, addedDate: data.startDate, createdAt: Date.now() });
+        addStrip({ id: uid(), batchId: batchId, label: row.label, initialWeightG: row.weightG, thicknessMm: row.thicknessMm, addedDate: data.startDate, texture: null, createdAt: Date.now() });
       });
       state.selectedBatchId = batchId;
       state.view = "detail";
@@ -1607,6 +1694,14 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
 
   function bindDetailEvents(b) {
     document.getElementById("btnBack").addEventListener("click", function() { state.view = "list"; state.selectedBatchId = null; render(); });
+
+    document.querySelectorAll("[data-rate-batch]").forEach(function(el) {
+      el.addEventListener("click", function() {
+        var n = Number(el.getAttribute("data-rate-batch"));
+        editBatch(b.id, { rating: n || null });
+        render();
+      });
+    });
 
     var delBatchBtn = document.getElementById("btnDeleteBatch");
     if (delBatchBtn) delBatchBtn.addEventListener("click", function() {
@@ -1656,7 +1751,7 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
       addStrip({
         id: uid(), batchId: b.id, label: fd.get("label").trim() || "Strip",
         initialWeightG: Number(fd.get("initialWeightG")), thicknessMm: fd.get("thicknessMm") ? Number(fd.get("thicknessMm")) : null,
-        addedDate: fd.get("addedDate") || todayISO(), createdAt: Date.now()
+        addedDate: fd.get("addedDate") || todayISO(), texture: null, createdAt: Date.now()
       });
       render();
       toast("Strip added");
@@ -1685,7 +1780,8 @@ var FIREBASE_DOC_PATH = null; // set after sign-in: "biltong/" + uid
             label: fd2.get("label").trim() || strip.label,
             initialWeightG: Number(fd2.get("initialWeightG")),
             thicknessMm: fd2.get("thicknessMm") ? Number(fd2.get("thicknessMm")) : null,
-            addedDate: fd2.get("addedDate") || strip.addedDate
+            addedDate: fd2.get("addedDate") || strip.addedDate,
+            texture: fd2.get("texture") || null
           });
           document.getElementById("editStripOverlay").remove();
           render();
